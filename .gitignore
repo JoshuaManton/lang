@@ -1,0 +1,6 @@
+/*.obj
+/*.exe
+*.ll
+*.bc
+.vscode/
+.vs/
