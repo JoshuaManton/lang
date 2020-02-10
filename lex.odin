@@ -51,14 +51,13 @@ get_next_token :: proc(lexer: ^Lexer) -> (Token, int, bool) {
                 token.slice = lexer.text[:cur];
             }
         }
-        case '%': token = tokens(lexer, {"%", .Mod}, {"%%", .Mod_Mod});
-
+        case '%': token = tokens(lexer, {"%", .Mod},       {"%%", .Mod_Mod});
         case '!': token = tokens(lexer, {"!", .Not},       {"!=", .Not_Equal});
         case '=': token = tokens(lexer, {"=", .Assign},    {"==", .Equal_To});
         case '<': token = tokens(lexer, {"<", .Less},      {"<=", .Less_Equal},    {"<<", .Shift_Left});
         case '>': token = tokens(lexer, {">", .Greater},   {">=", .Greater_Equal}, {">>", .Shift_Right});
         case '&': token = tokens(lexer, {"&", .Ampersand}, {"&&", .And});
-        case '|': token = tokens(lexer, {"|", .Bit_Or},       {"||", .Or});
+        case '|': token = tokens(lexer, {"|", .Bit_Or},    {"||", .Or});
         case '~': token = {"~", .Bit_Xor};
 
         case '(': token = {"(", .LParen};

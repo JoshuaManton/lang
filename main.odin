@@ -12,11 +12,12 @@ var some_global: int;
 var some_global2: int;
 
 proc foo() {
+    some_global = 213;
     some_global2 = 100;
 
     var a: int = 12;
     var b: int = 24;
-    var c: int = a + b * 32;
+    var c: int = a + b * 32 + some_global2;
 }
 
 // struct Guy {
@@ -37,6 +38,8 @@ proc foo() {
     typecheck_node(NODE(global_scope));
     fmt.println("Generating IR...");
     ir := gen_ir();
+    fmt.println("Translating IR to VM...");
+    vm := gen_vm(ir);
     fmt.println("Outputting AST...");
     output_graphviz(NODE(file));
 }
