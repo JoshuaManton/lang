@@ -22,6 +22,16 @@ init_types :: proc() {
 	register_declaration(global_scope, "bool", Decl_Type{type_bool});
 }
 
+typecheck_file :: proc(file: ^Ast_File) {
+	typecheck_scope(file.block);
+}
+
+typecheck_scope :: proc(scope: ^Ast_Scope) {
+	for node in scope.nodes {
+		typecheck_node(node);
+	}
+}
+
 typecheck_node :: proc(node: ^Ast_Node) {
 	switch kind in &node.kind {
 		case Ast_File:       typecheck_file(kind);
@@ -38,16 +48,6 @@ typecheck_node :: proc(node: ^Ast_Node) {
 			typecheck_expr(kind.rhs); assert(kind.rhs.type != nil);
 			assert(kind.lhs.type == kind.rhs.type);
 		}
-	}
-}
-
-typecheck_file :: proc(file: ^Ast_File) {
-	typecheck_scope(file.block);
-}
-
-typecheck_scope :: proc(scope: ^Ast_Scope) {
-	for node in scope.nodes {
-		typecheck_node(node);
 	}
 }
 
@@ -285,9 +285,11 @@ Type :: struct {
 	size: int,
 	magic: int,
 }
+
 Type_Primitive :: struct {
 
 }
+
 Type_Struct :: struct {
 	fields: []Field,
 }
@@ -295,16 +297,20 @@ Field :: struct {
 	name: string,
 	type: ^Type,
 }
+
 Type_Ptr :: struct {
 	ptr_to: ^Type,
 }
+
 Type_Slice :: struct {
 	slice_of: ^Type,
 }
+
 Type_Array :: struct {
 	array_of: ^Type,
 	length: int,
 }
+
 Type_Proc :: struct {
 	param_types: []^Type,
 	return_type: ^Type,

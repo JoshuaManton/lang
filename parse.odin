@@ -491,7 +491,7 @@ Ast_Var :: struct {
     typespec: ^Ast_Typespec,
     expr: ^Ast_Expr,
     type: ^Type,
-    storage: IR_Storage,
+    storage: ^IR_Storage,
 }
 
 Ast_Proc :: struct {

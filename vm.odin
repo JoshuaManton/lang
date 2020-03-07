@@ -5,8 +5,9 @@ import "core:fmt"
 RZ :: 0;
 RFP :: 1;
 RSP :: 2;
-RDATA :: 3;
-RUSER :: 4; // user-facing registers start here
+RIP :: 3;
+RDATA :: 4;
+RUSER :: 5; // user-facing registers start here
 
 STACK :: 0;
 DATA :: 128;
@@ -24,17 +25,18 @@ Instruction :: struct {
 }
 
 Instruction_Kind :: enum {
-	Move,             // reg_dst, reg_param
-	Push,             // reg_param
-	Pop,              // reg_dst
-	Load,             // reg_dst, reg_ptr, imm_offset
-	Load_Immediate,   // reg_dst, imm_param
-	Store,            // reg_ptr, imm_offset, reg_param
-	Add,              // reg_dst, reg_param1, reg_param2
-	Add_Immediate,    // reg_dst, reg_param1
-	Subtract,         // reg_dst, reg_param1, reg_param2
-	Multiply,         // reg_dst, reg_param1, reg_param2
-	Divide,           // reg_dst, reg_param1, reg_param2
+	Move,              // reg_dst, reg_param
+	Push,              // reg_param
+	Pop,               // reg_dst
+	Load,              // reg_dst, reg_ptr, imm_offset
+	Load_Immediate,    // reg_dst, imm_param
+	Store,             // reg_ptr, imm_offset, reg_param
+	Add,               // reg_dst, reg_param1, reg_param2
+	Add_Immediate,     // reg_dst, reg_param1
+	Subtract,          // reg_dst, reg_param1, reg_param2
+	Multiply,          // reg_dst, reg_param1, reg_param2
+	Divide,            // reg_dst, reg_param1, reg_param2
+	Jump_If_Zero,      // imm_jmp, reg_param
 }
 
 gen_vm :: proc(ir: IR_Result) -> ^VM {
@@ -44,6 +46,9 @@ gen_vm :: proc(ir: IR_Result) -> ^VM {
 	// todo(josh): generate data segment
 
 	for procedure in ir.procedures {
+		label_map: map[string]int;
+		defer delete(label_map);
+
 		inst(vm, .Push, RFP);
 		inst(vm, .Move, RFP, RSP);
 		if procedure.stack_frame_size > 0 {
@@ -52,7 +57,7 @@ gen_vm :: proc(ir: IR_Result) -> ^VM {
 		for stmt in procedure.statements {
 			switch kind in stmt.kind {
 				case IR_Load: {
-					switch storage in kind.storage {
+					switch storage in kind.storage.kind {
 						case Stack_Frame_Storage: inst(vm, .Load, user_reg(kind.dst.register), RFP, storage.offset);
 						case Global_Storage:      inst(vm, .Load, user_reg(kind.dst.register), RDATA, storage.offset);
 						case: unimplemented(fmt.tprint(kind));
@@ -60,7 +65,7 @@ gen_vm :: proc(ir: IR_Result) -> ^VM {
 				}
 				case IR_Load_Immediate: inst(vm, .Load_Immediate, user_reg(kind.dst.register), kind.imm);
 				case IR_Store: {
-					switch storage in kind.storage {
+					switch storage in kind.storage.kind {
 						case Stack_Frame_Storage: inst(vm, .Store, RFP,   storage.offset, user_reg(kind.value.register));
 						case Global_Storage:      inst(vm, .Store, RDATA, storage.offset, user_reg(kind.value.register));
 						case: unimplemented(fmt.tprint(kind));
@@ -88,12 +93,11 @@ gen_vm :: proc(ir: IR_Result) -> ^VM {
 		inst(vm, .Pop, RFP);
 	}
 
-	for instruction in vm.instructions {
-		fmt.println(instruction);
-
-		using instruction;
+	for vm.registers[RIP] < len(vm.instructions) {
+		using instruction := vm.instructions[vm.registers[RIP]];
 
 		switch kind {
+			case .Jump_If_Zero:   if vm.registers[p2] == 0 do vm.registers[RIP] = p1-1; // -1 because we increment RIP after every instruction
 			case .Move:           vm.registers[p1] = vm.registers[p2];
 			case .Push:           (cast(^int)&vm.memory[vm.registers[RSP]])^ = vm.registers[p1]; vm.registers[RSP] += size_of(int);
 			case .Pop:            vm.registers[RSP] -= size_of(int); vm.registers[p1] = (cast(^int)&vm.memory[vm.registers[RSP]])^;
@@ -107,6 +111,9 @@ gen_vm :: proc(ir: IR_Result) -> ^VM {
 			case .Divide:         vm.registers[p1] = vm.registers[p2] / vm.registers[p3];
 			case: unimplemented(fmt.tprint(kind));
 		}
+
+		vm.registers[RZ] = 0;
+		vm.registers[RIP] += 1;
 	}
 
 	fmt.println(transmute([]int)vm.memory[:32]);

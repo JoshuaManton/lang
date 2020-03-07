@@ -10,12 +10,15 @@ IR_Result :: struct {
 IR_Proc :: struct {
 	stack_frame_size: int,
 	statements: [dynamic]^IR_Statement,
-	num_temporaries: int,
+	all_temporaries: [dynamic]^Temporary,
 }
 
-IR_Storage :: union {
-	Stack_Frame_Storage,
-	Global_Storage,
+IR_Storage :: struct {
+	current_temorary: ^Temporary,
+	kind: union {
+		Stack_Frame_Storage,
+		Global_Storage,
+		},
 }
 Stack_Frame_Storage :: struct {
 	offset: int,
@@ -44,7 +47,7 @@ IR_Unary :: struct {
 	rhs: ^Temporary,
 }
 IR_Load :: struct {
-	storage: IR_Storage,
+	storage: ^IR_Storage,
 	dst: ^Temporary,
 }
 IR_Load_Immediate :: struct {
@@ -52,13 +55,16 @@ IR_Load_Immediate :: struct {
 	imm: int,
 }
 IR_Store :: struct {
-	storage: IR_Storage,
+	storage: ^IR_Storage,
 	value: ^Temporary,
 }
 
 Temporary :: struct {
 	register: int,
+	edges: [dynamic]^Temporary,
 }
+
+
 
 gen_ir :: proc() -> IR_Result {
 	ir: IR_Result;
@@ -70,7 +76,7 @@ gen_ir :: proc() -> IR_Result {
 			switch kind in &node.kind {
 				case Ast_Var: {
 					assert(kind.type.size > 0);
-					kind.storage = Global_Storage{ir.global_storage_size};
+					kind.storage = new_clone(IR_Storage{nil, Global_Storage{ir.global_storage_size}});
 					ir.global_storage_size += kind.type.size;
 				}
 				case Ast_Proc: {
@@ -89,7 +95,7 @@ gen_ir_proc :: proc(procedure: ^Ast_Proc) -> ^IR_Proc {
 	assert(len(procedure.variables) >= len(procedure.params), "Procedure parameters should be included in the procedure.variables list");
 	for var in procedure.variables {
 		assert(var.type.size > 0);
-		var.storage = Stack_Frame_Storage{ir_proc.stack_frame_size};
+		var.storage = new_clone(IR_Storage{nil, Stack_Frame_Storage{ir_proc.stack_frame_size}});
 		ir_proc.stack_frame_size += var.type.size;
 	}
 
@@ -105,7 +111,7 @@ gen_ir_proc :: proc(procedure: ^Ast_Proc) -> ^IR_Proc {
 				}
 			}
 			case Ast_Assign: {
-				storage: IR_Storage;
+				storage: ^IR_Storage;
 				#partial
 				switch kind in kind.lhs.kind {
 					case Expr_Identifier: {
@@ -184,16 +190,20 @@ gen_ir_expr :: proc(procedure: ^IR_Proc, expr: ^Ast_Expr) -> ^Temporary {
 ir_binop :: proc(procedure: ^IR_Proc, op: Token_Kind, lhs: ^Temporary, rhs: ^Temporary) -> ^Temporary { // todo(josh): make a separate Operator enum so we don't have to use Token_Kind
 	dst := make_temporary(procedure);
 	ir_statement(procedure, IR_Binop{op, dst, lhs, rhs});
+	add_edge(lhs, rhs);
+	add_edge(dst, lhs);
+	add_edge(dst, rhs);
 	return dst;
 }
 
 ir_unary :: proc(procedure: ^IR_Proc, op: Token_Kind, rhs: ^Temporary) -> ^Temporary {
 	dst := make_temporary(procedure);
 	ir_statement(procedure, IR_Unary{op, dst, rhs});
+	add_edge(dst, rhs);
 	return dst;
 }
 
-ir_load :: proc(procedure: ^IR_Proc, storage: IR_Storage) -> ^Temporary {
+ir_load :: proc(procedure: ^IR_Proc, storage: ^IR_Storage) -> ^Temporary {
 	dst := make_temporary(procedure);
 	ir_statement(procedure, IR_Load{storage, dst});
 	return dst;
@@ -204,7 +214,7 @@ ir_load_immediate :: proc(procedure: ^IR_Proc, imm: int) -> ^Temporary {
 	return dst;
 }
 
-ir_store :: proc(procedure: ^IR_Proc, storage: IR_Storage, value: ^Temporary) {
+ir_store :: proc(procedure: ^IR_Proc, storage: ^IR_Storage, value: ^Temporary) {
 	ir_statement(procedure, IR_Store{storage, value});
 }
 
@@ -216,7 +226,12 @@ ir_statement :: proc(procedure: ^IR_Proc, kind: $T) {
 
 make_temporary :: proc(procedure: ^IR_Proc) -> ^Temporary {
 	t := new(Temporary);
-	t.register = procedure.num_temporaries;
-	procedure.num_temporaries += 1;
+	t.register = len(procedure.all_temporaries);
+	append(&procedure.all_temporaries, t);
 	return t;
+}
+
+add_edge :: proc(t1, t2: ^Temporary) {
+	append(&t1.edges, t2);
+	append(&t2.edges, t1);
 }
