@@ -68,6 +68,25 @@ void variables() {
     assert(x == y);
 }
 
+void basic_stuff() {
+    print_string((String){"\n\n----- basic stuff -----\n", 26});
+    int foo = 5;
+    if (foo > 2) {
+        print_string((String){"foo is greater than 2", 21});
+    }
+    if (foo < 2) {
+        assert(false);
+        print_string((String){"foo is less than 2", 18});
+    }
+    else if (foo > 10) {
+        assert(false);
+        print_string((String){"foo is greater than 10", 22});
+    }
+    else {
+        print_string((String){"foo is greater than 2 and less than 10", 38});
+    }
+}
+
 void pointers() {
     print_string((String){"\n\n----- pointers -----\n", 23});
     int x = 11111;
@@ -123,6 +142,7 @@ void procedures() {
 
 void main() {
     variables();
+    basic_stuff();
     pointers();
     arrays();
     strings();

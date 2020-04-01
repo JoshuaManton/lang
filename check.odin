@@ -135,6 +135,7 @@ typecheck_node :: proc(node: ^Ast_Node) {
         case Ast_Var:            typecheck_var(&kind);        assert(kind.type != nil);
         case Ast_Proc:           typecheck_proc(&kind);       assert(kind.type != nil);
         case Ast_Struct:         typecheck_struct(&kind);     assert(kind.type != nil);
+        case Ast_If:             typecheck_if(&kind);
         case Ast_Return:         typecheck_return(&kind);
         case Ast_Expr:           panic("there should be no Ast_Exprs here, only Ast_Expr_Statements");
         case Ast_Expr_Statement: typecheck_expr(kind.expr);
@@ -240,6 +241,21 @@ typecheck_struct :: proc(structure: ^Ast_Struct) {
         append(&fields, Field{field.name, field.type});
     }
     structure.type = make_type_struct(fields[:]);
+}
+
+typecheck_if :: proc(if_statement: ^Ast_If) {
+    typecheck_expr(if_statement.condition);
+    assert(if_statement.condition.type != nil);
+    assert(if_statement.condition.type == type_bool);
+    typecheck_scope(if_statement.body);
+
+    for else_if in if_statement.else_ifs {
+        typecheck_if(else_if);
+    }
+
+    if if_statement.else_body != nil {
+        typecheck_scope(if_statement.else_body);
+    }
 }
 
 typecheck_return :: proc(return_statement: ^Ast_Return) {

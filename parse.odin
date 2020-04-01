@@ -43,25 +43,13 @@ parse_scope :: proc(lexer: ^Lexer) -> ^Ast_Scope {
             case .Var:    node = NODE(parse_var(lexer, true));
             case .Proc:   node = NODE(parse_proc(lexer));
             case .Struct: node = NODE(parse_struct(lexer));
+            case .Return: node = NODE(parse_return(lexer));
+            case .If:     node = NODE(parse_if(lexer));
+            case .RCurly: break node_loop;
             case .Line_Comment: {
                 get_next_token(lexer);
                 continue node_loop;
             }
-            case .Return: {
-                get_next_token(lexer);
-                if _, ok := peek_kind(lexer, .Semicolon); ok {
-                    return_node := make_node(Ast_Return);
-                    node = NODE(return_node);
-                }
-                else {
-                    expr := parse_expr(lexer);
-                    return_node := make_node(Ast_Return);
-                    return_node.expr = expr;
-                    node = NODE(return_node);
-                }
-                expect(lexer, .Semicolon);
-            }
-            case .RCurly: break node_loop;
             case: {
                 root_expr := parse_expr(lexer);
                 token, ok := peek(lexer);
@@ -270,6 +258,56 @@ parse_struct :: proc(lexer: ^Lexer) -> ^Ast_Struct {
     register_declaration(current_scope, structure.name, Decl_Struct{structure});
 
     return structure;
+}
+
+parse_if :: proc(lexer: ^Lexer) -> ^Ast_If {
+    parse_single_if :: proc(lexer: ^Lexer) -> ^Ast_If {
+        expect(lexer, .If);
+        expect(lexer, .LParen);
+        cond := parse_expr(lexer);
+        expect(lexer, .RParen);
+        body := parse_body(lexer);
+        if_statement := make_node(Ast_If);
+        if_statement.condition = cond;
+        if_statement.body = body;
+        return if_statement;
+    }
+
+    if_statement := parse_single_if(lexer);
+
+    else_if_loop: for {
+        if _, ok := peek_kind(lexer, .Else); ok {
+            get_next_token(lexer);
+            if _, ok := peek_kind(lexer, .If); ok {
+                // else if
+                else_if := parse_single_if(lexer);
+                append(&if_statement.else_ifs, else_if);
+            }
+            else {
+                // else
+                if_statement.else_body = parse_body(lexer);
+                break else_if_loop;
+            }
+        }
+        else {
+            break else_if_loop;
+        }
+    }
+
+    return if_statement;
+}
+
+parse_return :: proc(lexer: ^Lexer) -> ^Ast_Return {
+    return_statement := make_node(Ast_Return);
+
+    expect(lexer, .Return);
+    if _, ok := peek_kind(lexer, .Semicolon); !ok {
+        expr := parse_expr(lexer);
+        return_statement.expr = expr;
+    }
+    expect(lexer, .Semicolon);
+
+    return return_statement;
 }
 
 parse_expr :: inline proc(lexer: ^Lexer, loc := #caller_location) -> ^Ast_Expr {
@@ -556,6 +594,7 @@ Ast_Node :: struct {
         Ast_Var,
         Ast_Proc,
         Ast_Struct,
+        Ast_If,
         Ast_Expr,
         Ast_Expr_Statement,
         Ast_Typespec,
@@ -620,6 +659,13 @@ Ast_Struct :: struct {
     block: ^Ast_Scope,
     fields: [dynamic]^Ast_Var,
     type: ^Type_Struct,
+}
+
+Ast_If :: struct {
+    condition: ^Ast_Expr,
+    body: ^Ast_Scope,
+    else_ifs: [dynamic]^Ast_If,
+    else_body: ^Ast_Scope,
 }
 
 Ast_Assign :: struct {

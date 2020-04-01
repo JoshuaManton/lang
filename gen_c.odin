@@ -89,6 +89,7 @@ c_print_node :: proc(sb: ^strings.Builder, node: ^Ast_Node) {
         case Ast_Var:        c_print_var   (sb, &kind, true, true);
         case Ast_Proc:       c_print_proc  (sb, &kind);
         case Ast_Struct:     c_print_struct(sb, &kind);
+        case Ast_If:         c_print_if    (sb, &kind);
         case Ast_Return:     c_print_return(sb, &kind);
         case Ast_Assign:     c_print_assign(sb, &kind);
         case Ast_Identifier: sbprint(sb, kind.name);
@@ -158,6 +159,33 @@ c_print_struct :: proc(sb: ^strings.Builder, structure: ^Ast_Struct) {
         c_print_var(sb, field, true, true);
     }
     sbprint(sb, "} ", structure.name, ";\n\n");
+}
+
+c_print_if :: proc(sb: ^strings.Builder, if_statement: ^Ast_If) {
+    sbprint(sb, "if (");
+    c_print_expr(sb, if_statement.condition);
+    sbprint(sb, ") {\n");
+    c_indent_level += 1;
+    c_print_scope(sb, if_statement.body);
+    c_indent_level -= 1;
+    indent(sb);
+    sbprint(sb, "}\n");
+
+    for else_if in if_statement.else_ifs {
+        indent(sb);
+        sbprint(sb, "else ");
+        c_print_if(sb, else_if);
+    }
+
+    if if_statement.else_body != nil {
+        indent(sb);
+        sbprint(sb, "else {\n");
+        c_indent_level += 1;
+        c_print_scope(sb, if_statement.else_body);
+        c_indent_level -= 1;
+        indent(sb);
+        sbprint(sb, "}\n");
+    }
 }
 
 c_print_return :: proc(sb: ^strings.Builder, return_statement: ^Ast_Return) {

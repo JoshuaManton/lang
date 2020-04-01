@@ -211,6 +211,11 @@ Token :: struct {
 }
 
 Token_Kind :: enum {
+    _,
+
+    If,
+    Else,
+
     Var,
     Proc,
     Return,
@@ -276,6 +281,8 @@ Keyword_Mapping :: struct {
 }
 
 keyword_mapping := [?]Keyword_Mapping {
+    {"if",     .If},
+    {"else",   .Else},
     {"var",    .Var},
     {"proc",   .Proc},
     {"return", .Return},

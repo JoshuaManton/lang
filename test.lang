@@ -3,88 +3,110 @@ proc print_string(var str: string) #foreign;
 proc print_int(var i: int) #foreign;
 
 proc variables() {
-	print_string("\n\n----- variables -----\n");
+    print_string("\n\n----- variables -----\n");
 
-	var x: int = 123;
-	var y: int = 321;
-	print_int(x);
-	print_int(y);
+    var x: int = 123;
+    var y: int = 321;
+    print_int(x);
+    print_int(y);
 
-	assert(x != y);
-	y = 123;
-	assert(x == y);
+    assert(x != y);
+    y = 123;
+    assert(x == y);
+}
+
+proc basic_stuff() {
+    print_string("\n\n----- basic stuff -----\n");
+
+    var foo: int = 5;
+    if (foo > 2) {
+        print_string("foo is greater than 2");
+    }
+
+    if (foo < 2) {
+        assert(false);
+        print_string("foo is less than 2");
+    }
+    else if (foo > 10) {
+        assert(false);
+        print_string("foo is greater than 10");
+    }
+    else {
+        print_string("foo is greater than 2 and less than 10");
+    }
 }
 
 proc pointers() {
-	print_string("\n\n----- pointers -----\n");
+    print_string("\n\n----- pointers -----\n");
 
-	var x: int = 11111;
-	print_int(x);
+    var x: int = 11111;
+    print_int(x);
 
-	var ptr: ^int = &x;
-	assert(x == 11111);
-	ptr^ = 44444;
-	assert(x == 44444);
-	print_int(x);
+    var ptr: ^int = &x;
+    assert(x == 11111);
+    ptr^ = 44444;
+    assert(x == 44444);
+    print_int(x);
 
-	var ptr_to_ptr: ^^int = &ptr;
-	ptr_to_ptr^^ = 99999;
-	assert(x == 99999);
-	print_int(x);
+    var ptr_to_ptr: ^^int = &ptr;
+    ptr_to_ptr^^ = 99999;
+    assert(x == 99999);
+    print_int(x);
 }
 
 proc arrays() {
-	print_string("\n\n----- arrays -----\n");
+    print_string("\n\n----- arrays -----\n");
 
-	var a: [8]int;
-	var b: int = 2;
-	a[b] = 123;
-	print_int(a[b]);
+    var a: [8]int;
+    var b: int = 2;
+    a[b] = 123;
+    print_int(a[b]);
 
-	var c: ^[8]int;
-	var d: [8]^int;
-	var e: ^[8]^int;
-	var f: ^[8]^[16]int;
+    var c: ^[8]int;
+    var d: [8]^int;
+    var e: ^[8]^int;
+    var f: ^[8]^[16]int;
 
-	var x: ^^^int;
-	var y: [1][2][3]int;
+    var x: ^^^int;
+    var y: [1][2][3]int;
 }
 
 proc strings() {
-	print_string("\n\n----- strings -----\n");
+    print_string("\n\n----- strings -----\n");
 
-	var str1: string = "Henlo, Sailor!";
-	var str2: string = "Henlo, Sailor!";
-	assert(str1 == str2);
+    var str1: string = "Henlo, Sailor!";
+    var str2: string = "Henlo, Sailor!";
+    assert(str1 == str2);
 
-	str2 = "Hell no, Sailor!";
-	assert(str1 != str2);
+    str2 = "Hell no, Sailor!";
+    assert(str1 != str2);
 
-	var str3: string = "\n\r\t\"\\\b\f";
-	assert(str3.length == 7);
+    var str3: string = "\n\r\t\"\\\b\f";
+    assert(str3.length == 7);
 
-	print_string("Hello, Sailor!");
+    print_string("Hello, Sailor!");
 }
 
 proc foozle() : int {
-	var a: int = 2;
-	var b: int = 3;
-	return a + b;
+    var a: int = 2;
+    var b: int = 3;
+    return a + b;
 }
 
 proc procedures() {
-	print_string("\n\n----- procedures -----\n");
+    print_string("\n\n----- procedures -----\n");
 
-	var result: int = foozle();
-	print_int(result);
+    var result: int = foozle();
+    print_int(result);
 }
 
 proc main() {
-	variables();
-	pointers();
-	arrays();
-	strings();
-	procedures();
+    variables();
+    basic_stuff();
+    pointers();
+    arrays();
+    strings();
+    procedures();
 
     // assert(true == false);
 }
