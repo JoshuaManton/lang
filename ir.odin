@@ -2,6 +2,8 @@ package main
 
 import "core:fmt"
 
+/*
+
 IR_Result :: struct {
 	procedures: [dynamic]^IR_Proc,
 	global_storage_size: int,
@@ -18,7 +20,7 @@ IR_Storage :: struct {
 	kind: union {
 		Stack_Frame_Storage,
 		Global_Storage,
-		},
+	},
 }
 Stack_Frame_Storage :: struct {
 	offset: int,
@@ -37,12 +39,12 @@ IR_Statement :: struct {
 	},
 }
 IR_Binop :: struct {
-	op: Token_Kind,
+	op: Operator,
 	dst: ^Temporary,
 	lhs, rhs: ^Temporary,
 }
 IR_Unary :: struct {
-	op: Token_Kind,
+	op: Operator,
 	dst: ^Temporary,
 	rhs: ^Temporary,
 }
@@ -80,7 +82,7 @@ gen_ir :: proc() -> IR_Result {
 					ir.global_storage_size += kind.type.size;
 				}
 				case Ast_Proc: {
-					ir_proc := gen_ir_proc(kind);
+					ir_proc := gen_ir_proc(&kind);
 					append(&ir.procedures, ir_proc);
 				}
 				case: unimplemented(fmt.tprint(kind));
@@ -187,7 +189,7 @@ gen_ir_expr :: proc(procedure: ^IR_Proc, expr: ^Ast_Expr) -> ^Temporary {
 	return result;
 }
 
-ir_binop :: proc(procedure: ^IR_Proc, op: Token_Kind, lhs: ^Temporary, rhs: ^Temporary) -> ^Temporary { // todo(josh): make a separate Operator enum so we don't have to use Token_Kind
+ir_binop :: proc(procedure: ^IR_Proc, op: Operator, lhs: ^Temporary, rhs: ^Temporary) -> ^Temporary {
 	dst := make_temporary(procedure);
 	ir_statement(procedure, IR_Binop{op, dst, lhs, rhs});
 	add_edge(lhs, rhs);
@@ -196,7 +198,7 @@ ir_binop :: proc(procedure: ^IR_Proc, op: Token_Kind, lhs: ^Temporary, rhs: ^Tem
 	return dst;
 }
 
-ir_unary :: proc(procedure: ^IR_Proc, op: Token_Kind, rhs: ^Temporary) -> ^Temporary {
+ir_unary :: proc(procedure: ^IR_Proc, op: Operator, rhs: ^Temporary) -> ^Temporary {
 	dst := make_temporary(procedure);
 	ir_statement(procedure, IR_Unary{op, dst, rhs});
 	add_edge(dst, rhs);
@@ -235,3 +237,5 @@ add_edge :: proc(t1, t2: ^Temporary) {
 	append(&t1.edges, t2);
 	append(&t2.edges, t1);
 }
+
+*/

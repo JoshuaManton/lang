@@ -14,8 +14,9 @@ register_declaration :: proc(scope: ^Ast_Scope, name: string, decl: Declaration_
 }
 
 resolve_identifiers :: proc() {
-	ident_loop: for ident in unresolved_identifiers {
-		base := NODE(ident);
+	ident_loop:
+	for ident in unresolved_identifiers {
+		base := cast(^Ast_Node)ident;
 		current := base.enclosing_scope;
 		for current != nil {
 			defer current = current.parent;

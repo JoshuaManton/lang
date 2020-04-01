@@ -6,44 +6,41 @@ import "core:strings"
 import "core:os"
 
 main :: proc() {
-    text :=
-`
-var some_global: int;
-var some_global2: int;
-
-proc foo() {
-    some_global = 213;
-    some_global2 = 100;
-
-    var a: int = 12;
-    var b: int = 24;
-    var c: int = a + b * 32 + some_global2;
-}
-
-// struct Guy {
-//     var age: int;
-//     var height: float;
-// }
-`;
+    if len(os.args) < 2 {
+        fmt.println("Usage:\n  lang <filename>");
+        return;
+    }
 
     init_parser();
     init_types();
 
-    lexer := make_lexer(text);
+    file_data, ok := os.read_entire_file(os.args[1]);
+    defer delete(file_data);
+    assert(ok);
+    lexer := make_lexer(transmute(string)file_data);
     fmt.println("Parsing...");
-    file := parse_file(&lexer, "main.lang");
+    file := parse_file(&lexer, os.args[1]);
     fmt.println("Resolving identifiers...");
     resolve_identifiers();
     fmt.println("Checking types...");
     typecheck_node(NODE(global_scope));
-    fmt.println("Generating IR...");
-    ir := gen_ir();
-    fmt.println("Translating IR to VM...");
-    vm := gen_vm(ir);
-    fmt.println("Outputting AST...");
-    output_graphviz(NODE(file));
+    when false {
+        fmt.println("Generating IR...");
+        ir := gen_ir();
+        fmt.println("Translating IR to VM...");
+        vm := gen_vm(ir);
+    }
+    else {
+        fmt.println("Generating C code...");
+        c_code := gen_c();
+        os.write_entire_file("output.c", transmute([]byte)c_code);
+    }
+
+    // fmt.println("Outputting AST...");
+    // output_graphviz(NODE(file));
 }
 
+/*
 output_graphviz :: proc(node: ^Ast_Node) {
     sb: strings.Builder;
     fmt.sbprint(&sb, "digraph g {\n");
@@ -168,3 +165,6 @@ gv_name :: proc(node: ^Ast_Node) -> string {
     fmt.sbprint(&name, '"');
     return strings.to_string(name);
 }
+*/
+
+tprint :: fmt.tprint;

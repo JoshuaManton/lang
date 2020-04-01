@@ -1,10 +1,11 @@
 package main
 
 import "core:fmt"
+import "core:strings"
 import "core:strconv"
 
-current_scope: ^Ast_Scope;
 global_scope: ^Ast_Scope;
+current_scope: ^Ast_Scope;
 current_procedure: ^Ast_Proc;
 
 init_parser :: proc() {
@@ -27,6 +28,7 @@ parse_scope :: proc(lexer: ^Lexer) -> ^Ast_Scope {
     scope := make_node(Ast_Scope);
     scope.parent = current_scope;
     old_scope := current_scope;
+
     current_scope = scope;
     defer current_scope = old_scope;
 
@@ -45,27 +47,46 @@ parse_scope :: proc(lexer: ^Lexer) -> ^Ast_Scope {
                 get_next_token(lexer);
                 continue node_loop;
             }
+            case .Return: {
+                get_next_token(lexer);
+                if _, ok := peek_kind(lexer, .Semicolon); ok {
+                    return_node := make_node(Ast_Return);
+                    node = NODE(return_node);
+                }
+                else {
+                    expr := parse_expr(lexer);
+                    return_node := make_node(Ast_Return);
+                    return_node.expr = expr;
+                    node = NODE(return_node);
+                }
+                expect(lexer, .Semicolon);
+            }
             case .RCurly: break node_loop;
             case: {
-                expr := parse_expr(lexer);
+                root_expr := parse_expr(lexer);
                 token, ok := peek(lexer);
                 assert(ok);
                 #partial
                 switch token.kind {
                     case .Assign: {
-                        get_next_token(lexer);
-                        lhs := expr;
+                        lhs := root_expr;
+                        get_next_token(lexer); // todo(josh): handle +=, -=, etc
                         rhs := parse_expr(lexer);
                         assign := make_node(Ast_Assign);
                         assign^ = Ast_Assign{token.kind, lhs, rhs};
-                        expr = cast(^Ast_Expr)assign;
+                        node = NODE(assign);
+                        expect(lexer, .Semicolon);
+                    }
+                    case .Semicolon: {
+                        get_next_token(lexer);
+                        expr_stmt := make_node(Ast_Expr_Statement);
+                        expr_stmt.expr = root_expr;
+                        node = NODE(expr_stmt);
                     }
                     case: {
                         unimplemented(fmt.tprint(token.kind));
                     }
                 }
-                expect(lexer, .Semicolon);
-                node = NODE(expr);
             }
         }
         assert(node != nil);
@@ -134,7 +155,7 @@ parse_typespec :: proc(lexer: ^Lexer) -> ^Ast_Typespec {
                 case: {
                     length := parse_expr(lexer);
                     expect(lexer, .RSquare);
-                    typespec.kind = Typespec_Array{parse_typespec(lexer)};
+                    typespec.kind = Typespec_Array{parse_typespec(lexer), length};
                 }
             }
         }
@@ -151,10 +172,13 @@ parse_proc :: proc(lexer: ^Lexer) -> ^Ast_Proc {
     current_procedure = procedure;
     defer current_procedure = old_proc;
 
+    // name
     expect(lexer, .Proc);
     name_token := expect(lexer, .Identifier);
-    expect(lexer, .LParen);
+    procedure.name = name_token.slice;
 
+    // params
+    expect(lexer, .LParen);
     params: [dynamic]^Ast_Var;
     for {
         if t, ok := peek(lexer); ok {
@@ -170,21 +194,48 @@ parse_proc :: proc(lexer: ^Lexer) -> ^Ast_Proc {
         param := parse_var(lexer, false);
         append(&params, param);
     }
+    procedure.params = params[:];
 
+    // return value
     return_typespec: ^Ast_Typespec;
     {
         token, ok := peek(lexer);
         assert(ok);
-        if token.kind != .LCurly {
+
+        if token.kind == .Colon {
+            get_next_token(lexer);
             return_typespec = parse_typespec(lexer);
         }
     }
+    procedure.return_typespec = return_typespec;
 
-    body := parse_body(lexer);
+    // directives
+    directive_loop:
+    for {
+        if directive, ok := peek(lexer); ok {
+            #partial
+            switch directive.kind {
+                case .Directive_Foreign: {
+                    get_next_token(lexer);
+                    procedure.is_foreign = true;
+                }
+                case: {
+                    break directive_loop;
+                }
+            }
+        }
+    }
 
-    procedure.name = name_token.slice;
-    procedure.params = params[:];
-    procedure.block = body;
+    if semicolon, ok := peek(lexer); ok && semicolon.kind == .Semicolon {
+        assert(procedure.is_foreign); // todo(josh): should this assert be here? can non-foreign procs not have bodies?
+        t, _, ok := get_next_token(lexer);
+    }
+    else {
+        assert(!procedure.is_foreign);
+        // body
+        body := parse_body(lexer);
+        procedure.block = body;
+    }
 
     register_declaration(current_scope, procedure.name, Decl_Proc{procedure});
 
@@ -236,7 +287,7 @@ parse_or_expr :: proc(lexer: ^Lexer) -> ^Ast_Expr {
         lhs := expr;
         rhs := parse_and_expr(lexer);
         expr = make_node(Ast_Expr);
-        expr.kind = Expr_Binary{op.kind, lhs, rhs};
+        expr.kind = Expr_Binary{token_operator(op.kind), lhs, rhs};
     }
     return expr;
 }
@@ -252,7 +303,7 @@ parse_and_expr :: proc(lexer: ^Lexer) -> ^Ast_Expr {
         lhs := expr;
         rhs := parse_cmp_expr(lexer);
         expr = make_node(Ast_Expr);
-        expr.kind = Expr_Binary{op.kind, lhs, rhs};
+        expr.kind = Expr_Binary{token_operator(op.kind), lhs, rhs};
     }
     return expr;
 }
@@ -267,7 +318,7 @@ parse_cmp_expr :: proc(lexer: ^Lexer) -> ^Ast_Expr {
         lhs := expr;
         rhs := parse_add_expr(lexer);
         expr = make_node(Ast_Expr);
-        expr.kind = Expr_Binary{op.kind, lhs, rhs};
+        expr.kind = Expr_Binary{token_operator(op.kind), lhs, rhs};
     }
     return expr;
 }
@@ -282,7 +333,7 @@ parse_add_expr :: proc(lexer: ^Lexer) -> ^Ast_Expr {
         lhs := expr;
         rhs := parse_mul_expr(lexer);
         expr = make_node(Ast_Expr);
-        expr.kind = Expr_Binary{op.kind, lhs, rhs};
+        expr.kind = Expr_Binary{token_operator(op.kind), lhs, rhs};
     }
     return expr;
 }
@@ -297,34 +348,29 @@ parse_mul_expr :: proc(lexer: ^Lexer) -> ^Ast_Expr {
         lhs := expr;
         rhs := parse_unary_expr(lexer);
         expr = make_node(Ast_Expr);
-        expr.kind = Expr_Binary{op.kind, lhs, rhs};
+        expr.kind = Expr_Binary{token_operator(op.kind), lhs, rhs};
     }
     return expr;
 }
 
 parse_unary_expr :: proc(lexer: ^Lexer) -> ^Ast_Expr {
     expr: ^Ast_Expr;
-    if is_unary_op(lexer) {
+    for is_unary_op(lexer) {
         op, _, ok := get_next_token(lexer);
         assert(ok);
 
         rhs := parse_unary_expr(lexer);
         expr = make_node(Ast_Expr);
-        expr.kind = Expr_Unary{op.kind, rhs};
-    }
-    // todo(josh)
-    // else if is_token(.Cast) {
-    //     cast_keyword := next_token();
-    //     expect(.Left_Paren);
-    //     target_type := parse_typespec(ws);
-    //     expect(.Right_Paren);
-    //     rhs := parse_unary_expr(ws);
-    //     node := node(ws, cast_keyword, Ast_Cast{{}, target_type, rhs});
-    //     depend(ws, node, rhs);
-    //     depend(ws, node, target_type);
-    //     return node.base;
-    // }
 
+        #partial
+        switch op.kind {
+            case .Ampersand:  expr.kind = Expr_Address_Of{rhs};
+            case: expr.kind = Expr_Unary{token_operator(op.kind), rhs};
+        }
+    }
+    if expr != nil {
+        return expr;
+    }
     return parse_postfix_expr(lexer);
 }
 
@@ -334,52 +380,57 @@ parse_postfix_expr :: proc(lexer: ^Lexer) -> ^Ast_Expr {
 
     base_expr := parse_base_expr(lexer);
 
-    // todo(josh)
-    // for is_postfix_op(lexer) {
-    //     op, _, ok := get_next_token(lexer);
-    //     next_expr: ^Ast_Node;
-    //     switch op.kind {
-    //         case .Period: {
-    //             field_token := expect(lexer, .Identifier);
-    //             selector := node(ws, token, Ast_Selector{{}, current_expr, sym_token.text});
-    //             depend(ws, selector, current_expr);
-    //             next_expr = selector.base;
-    //         }
-    //         case .Left_Paren: {
-    //             parameters: [dynamic]^Ast_Node;
-    //             for !is_token(Right_Paren) {
-    //                 param := parse_expr(ws);
-    //                 append(&parameters, param);
+    for is_postfix_op(lexer) {
+        op, _, ok := get_next_token(lexer);
+        assert(ok);
 
-    //                 if is_token(Comma) {
-    //                     next_token();
-    //                 }
-    //             }
-    //             expect(Right_Paren);
-    //             next_expr = node(ws, token, Ast_Call{{}, current_expr, parameters[:]}).base;
+        #partial
+        switch op.kind {
+            case .LParen: {
+                // proc call
+                params: [dynamic]^Ast_Expr;
+                first := true;
+                for {
+                    defer first = false;
+                    token, ok := peek(lexer);
+                    assert(ok);
+                    if token.kind != .RParen {
+                        if !first do expect(lexer, .Comma);
+                        param := parse_expr(lexer);
+                        append(&params, param);
+                    }
+                    else {
+                        break;
+                    }
+                }
+                expect(lexer, .RParen);
 
-    //             depend(ws, next_expr, current_expr);
-
-    //             // todo: factor into the loop above
-    //             for p in parameters {
-    //                 depend(ws, next_expr, p);
-    //             }
-    //         }
-    //         case .Left_Square: {
-    //             expression := parse_expr(ws);
-    //             next_expr = node(ws, token, Ast_Subscript{{}, current_expr, expression}).base;
-    //             depend(ws, next_expr, current_expr);
-    //             expect(Right_Square);
-    //         }
-    //         case: {
-    //             err := aprintln("is_postfix_op() returned true, but we must be missing a case in the switch for", op.kind);
-    //             assert(false, err);
-    //         }
-    //     }
-
-    //     assert(next_expr != nil);
-    //     current_expr = next_expr;
-    // }
+                call := make_node(Ast_Expr);
+                call.kind = Expr_Call{base_expr, params[:]};
+                base_expr = call;
+            }
+            case .LSquare: {
+                index := parse_expr(lexer);
+                expect(lexer, .RSquare);
+                subscript := make_node(Ast_Expr);
+                subscript.kind = Expr_Subscript{base_expr, index};
+                base_expr = subscript;
+            }
+            case .Caret: {
+                deref := make_node(Ast_Expr);
+                deref.kind = Expr_Dereference{base_expr};
+                base_expr = deref;
+            }
+            case .Period: {
+                name := expect(lexer, .Identifier);
+                assert(ok);
+                selector := make_node(Ast_Expr);
+                selector.kind = Expr_Selector{base_expr, name.slice};
+                base_expr = selector;
+            }
+            case: panic(tprint(op.kind));
+        }
+    }
 
     return base_expr;
 }
@@ -389,9 +440,9 @@ parse_base_expr :: proc(lexer: ^Lexer) -> ^Ast_Expr {
     expr := make_node(Ast_Expr);
     #partial
     switch token.kind {
-        case .Null: {
-            expr.kind = Expr_Null{};
-        }
+        case .Null:  expr.kind = Expr_Null{};
+        case .True:  expr.kind = Expr_True{};
+        case .False: expr.kind = Expr_False{};
         case .Identifier: {
             ident := make_node(Ast_Identifier);
             ident.name = token.slice;
@@ -402,21 +453,14 @@ parse_base_expr :: proc(lexer: ^Lexer) -> ^Ast_Expr {
             expr.kind = Expr_Number{strconv.parse_int(token.slice)};
         }
         case .String: {
-            expr.kind = Expr_String{unescape_string(token.slice)};
+            str, length := unescape_string(token.slice);
+            expr.kind = Expr_String{str, length};
         }
         case .LParen: {
             nested := parse_expr(lexer);
             expr.kind = Expr_Paren{nested};
             expect(lexer, .RParen);
         }
-        // case .Sizeof: {
-        //     expect(Left_Paren);
-        //     typespec := parse_typespec(ws);
-        //     expect(Right_Paren);
-        //     expr := node(ws, token, Ast_Sizeof{{}, typespec});
-        //     depend(ws, expr, typespec);
-        //     return expr.base;
-        // }
         case: {
             unimplemented(fmt.tprint(token));
         }
@@ -427,18 +471,82 @@ parse_base_expr :: proc(lexer: ^Lexer) -> ^Ast_Expr {
     return expr;
 }
 
-unescape_string :: proc(str: string) -> string {
-    unimplemented();
-    return {};
+unescape_string :: proc(str: string) -> (string, int) {
+    str := str;
+
+    // trim out quotes
+    assert(str[0] == '"');
+    assert(str[len(str)-1] == '"');
+    str = str[1:len(str)-1];
+
+    length := len(str);
+
+    escape := false;
+    sb: strings.Builder;
+    text_loop: for c in str {
+        if !escape {
+            switch c {
+                case '\\': escape = true; length -= 1;
+                case: fmt.sbprint(&sb, cast(rune)c);
+            }
+        }
+        else {
+            escape = false;
+            switch c {
+                case '"':  fmt.sbprint(&sb, "\\\"");
+                case '\\': fmt.sbprint(&sb, "\\\\");
+                case 'b':  fmt.sbprint(&sb, "\\b");
+                case 'f':  fmt.sbprint(&sb, "\\f");
+                case 'n':  fmt.sbprint(&sb, "\\n");
+                case 'r':  fmt.sbprint(&sb, "\\r");
+                case 't':  fmt.sbprint(&sb, "\\t");
+                // case 'u':  fmt.sbprint(&sb, '\u'); // todo(josh): unicode
+                case: panic(fmt.tprint("Unexpected escape character: ", c));
+            }
+        }
+    }
+    assert(escape == false, "end of string from within escape sequence");
+
+    escaped := strings.to_string(sb);
+    return escaped, length;
 }
 
-is_or_op      :: proc(lexer: ^Lexer) -> bool { token, ok := peek(lexer); assert(ok); #partial switch token.kind { case .Or:  return true; } return false; }
-is_and_op     :: proc(lexer: ^Lexer) -> bool { token, ok := peek(lexer); assert(ok); #partial switch token.kind { case .And: return true; } return false; }
-is_cmp_op     :: proc(lexer: ^Lexer) -> bool { token, ok := peek(lexer); assert(ok); #partial switch token.kind { case .CMP_BEGIN...CMP_END: return true; } return false; }
-is_add_op     :: proc(lexer: ^Lexer) -> bool { token, ok := peek(lexer); assert(ok); #partial switch token.kind { case .ADD_BEGIN...ADD_END: return true; } return false; }
-is_mul_op     :: proc(lexer: ^Lexer) -> bool { token, ok := peek(lexer); assert(ok); #partial switch token.kind { case .MUL_BEGIN...MUL_END: return true; } return false; }
-is_unary_op   :: proc(lexer: ^Lexer) -> bool { token, ok := peek(lexer); assert(ok); #partial switch token.kind { case .Minus, .Plus, .Ampersand:  return true; } return false; }
-is_postfix_op :: proc(lexer: ^Lexer) -> bool { token, ok := peek(lexer); assert(ok); #partial switch token.kind { case .LParen, .LSquare, .Period: return true; } return false; }
+is_or_op      :: proc(lexer: ^Lexer) -> bool { token, ok := peek(lexer); assert(ok); #partial switch token.kind { case .Or:                                return true; } return false; }
+is_and_op     :: proc(lexer: ^Lexer) -> bool { token, ok := peek(lexer); assert(ok); #partial switch token.kind { case .And:                               return true; } return false; }
+is_cmp_op     :: proc(lexer: ^Lexer) -> bool { token, ok := peek(lexer); assert(ok); #partial switch token.kind { case .CMP_BEGIN...CMP_END:               return true; } return false; }
+is_add_op     :: proc(lexer: ^Lexer) -> bool { token, ok := peek(lexer); assert(ok); #partial switch token.kind { case .ADD_BEGIN...ADD_END:               return true; } return false; }
+is_mul_op     :: proc(lexer: ^Lexer) -> bool { token, ok := peek(lexer); assert(ok); #partial switch token.kind { case .MUL_BEGIN...MUL_END:               return true; } return false; }
+is_unary_op   :: proc(lexer: ^Lexer) -> bool { token, ok := peek(lexer); assert(ok); #partial switch token.kind { case .Minus, .Plus, .Ampersand:          return true; } return false; }
+is_postfix_op :: proc(lexer: ^Lexer) -> bool { token, ok := peek(lexer); assert(ok); #partial switch token.kind { case .LParen, .LSquare, .Period, .Caret: return true; } return false; }
+
+token_operator :: proc(t: Token_Kind, loc := #caller_location) -> Operator {
+    #partial
+    switch t {
+        case .Multiply:      return .Multiply;
+        case .Divide:        return .Divide;
+        case .Mod:           return .Mod;
+        case .Mod_Mod:       return .Mod_Mod;
+        case .Shift_Left:    return .Shift_Left;
+        case .Shift_Right:   return .Shift_Right;
+        case .Bit_Or:        return .Bit_Or;
+        case .Caret:         return .Bit_Xor;
+        case .Bit_Not:       return .Bit_Not;
+        case .Equal_To:      return .Equal_To;
+        case .Not_Equal:     return .Not_Equal;
+        case .Less:          return .Less;
+        case .Greater:       return .Greater;
+        case .Less_Equal:    return .Less_Equal;
+        case .Greater_Equal: return .Greater_Equal;
+        case .Not:           return .Not;
+        case .And:           return .And;
+        case .Or:            return .Or;
+        case .Plus:          return .Plus;
+        case .Minus:         return .Minus;
+        case: panic(tprint(t, " caller: ", loc));
+    }
+    unreachable();
+    return {};
+}
 
 NODE_MAGIC :: 273628378;
 Ast_Node :: struct {
@@ -449,13 +557,16 @@ Ast_Node :: struct {
         Ast_Proc,
         Ast_Struct,
         Ast_Expr,
+        Ast_Expr_Statement,
         Ast_Typespec,
         Ast_Identifier,
         Ast_Assign,
+        Ast_Return,
     },
     magic: int,
     s: int,
     enclosing_scope: ^Ast_Scope,
+    enclosing_procedure: ^Ast_Proc,
 }
 
 last_node_serial: int;
@@ -466,6 +577,7 @@ make_node :: proc($T: typeid) -> ^T {
     node.magic = NODE_MAGIC;
     node.s = last_node_serial;
     node.enclosing_scope = current_scope;
+    node.enclosing_procedure = current_procedure;
     return cast(^T)node;
 }
 
@@ -491,7 +603,6 @@ Ast_Var :: struct {
     typespec: ^Ast_Typespec,
     expr: ^Ast_Expr,
     type: ^Type,
-    storage: ^IR_Storage,
 }
 
 Ast_Proc :: struct {
@@ -501,6 +612,7 @@ Ast_Proc :: struct {
     block: ^Ast_Scope,
     variables: [dynamic]^Ast_Var,
     type: ^Type_Proc,
+    is_foreign: bool,
 }
 
 Ast_Struct :: struct {
@@ -515,25 +627,47 @@ Ast_Assign :: struct {
     lhs, rhs: ^Ast_Expr,
 }
 
+Ast_Return :: struct {
+    expr: ^Ast_Expr, // note(josh): can be nil
+}
+
+Ast_Expr_Statement :: struct {
+    expr: ^Ast_Expr,
+}
+
 Ast_Expr :: struct {
     kind: union {
         Expr_Binary,
         Expr_Unary,
         Expr_Number,
         Expr_String,
+        Expr_Selector,
+        Expr_Subscript,
         Expr_Identifier,
+        Expr_Call,
         Expr_Null,
+        Expr_True,
+        Expr_False,
         Expr_Paren,
+        Expr_Address_Of,
+        Expr_Dereference,
     },
     type: ^Type,
+    mode: Addressing_Mode,
 }
 Expr_Binary :: struct {
-    op: Token_Kind,
+    op: Operator,
     lhs, rhs: ^Ast_Expr,
 }
 Expr_Unary :: struct {
-    op: Token_Kind,
+    op: Operator,
     rhs: ^Ast_Expr,
+}
+Expr_Address_Of :: struct {
+    rhs: ^Ast_Expr,
+}
+Expr_Dereference :: struct {
+    lhs: ^Ast_Expr,
 }
 Expr_Number :: struct {
     // todo(josh): handle floats, etc
@@ -541,16 +675,36 @@ Expr_Number :: struct {
 }
 Expr_String :: struct {
     str: string,
+    length: int, // note(josh): not the same as len(str) because of escaped characters
+}
+Expr_Selector :: struct {
+    lhs: ^Ast_Expr,
+    field: string,
+}
+Expr_Subscript :: struct {
+    lhs: ^Ast_Expr,
+    index: ^Ast_Expr,
 }
 Expr_Paren :: struct {
     expr: ^Ast_Expr,
 }
-Expr_Null :: struct {
-
-}
+Expr_Null :: struct { }
+Expr_True :: struct { }
+Expr_False :: struct { }
 Expr_Identifier :: struct {
     ident: ^Ast_Identifier,
 }
+Expr_Call :: struct {
+    procedure_expr: ^Ast_Expr,
+    params: []^Ast_Expr,
+}
+
+Addressing_Mode :: enum {
+    No_Value,
+    LValue,
+    RValue,
+}
+
 
 Ast_Typespec :: struct {
     kind: union {
@@ -572,6 +726,7 @@ Typespec_Slice :: struct {
 }
 Typespec_Array :: struct {
     array_of: ^Ast_Typespec,
+    length: ^Ast_Expr,
 }
 
 Ast_Identifier :: struct {
@@ -605,7 +760,25 @@ Decl_Proc :: struct {
 }
 
 Operator :: enum {
+    Multiply,
+    Divide,
+    Mod,
+    Mod_Mod,
+    Shift_Left,
+    Shift_Right,
     Plus,
     Minus,
-
+    Bit_Xor,
+    Bit_Or,
+    Bit_And,
+    Bit_Not,
+    Not,
+    Equal_To,
+    Not_Equal,
+    Less,
+    Greater,
+    Less_Equal,
+    Greater_Equal,
+    And,
+    Or,
 }

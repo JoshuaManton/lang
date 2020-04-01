@@ -58,7 +58,7 @@ get_next_token :: proc(lexer: ^Lexer) -> (Token, int, bool) {
         case '>': token = tokens(lexer, {">", .Greater},   {">=", .Greater_Equal}, {">>", .Shift_Right});
         case '&': token = tokens(lexer, {"&", .Ampersand}, {"&&", .And});
         case '|': token = tokens(lexer, {"|", .Bit_Or},    {"||", .Or});
-        case '~': token = {"~", .Bit_Xor};
+        case '~': token = {"~", .Bit_Not};
 
         case '(': token = {"(", .LParen};
         case ')': token = {")", .RParen};
@@ -66,6 +66,12 @@ get_next_token :: proc(lexer: ^Lexer) -> (Token, int, bool) {
         case '}': token = {"}", .RCurly};
         case '[': token = {"[", .LSquare};
         case ']': token = {"]", .RSquare};
+        case '#': {
+            token = tokens(lexer,
+                {"#foreign", .Directive_Foreign},
+                {"#include", .Directive_Include}
+            );
+        }
         case: {
             unimplemented(fmt.tprint(rune(lexer.text[0])));
         }
@@ -83,12 +89,12 @@ peek :: proc(lexer: ^Lexer) -> (Token, bool) {
     return token, ok;
 }
 
-peek_kind :: proc(lexer: ^Lexer, kind: Token_Kind) -> bool {
+peek_kind :: proc(lexer: ^Lexer, kind: Token_Kind) -> (Token, bool) {
     cpy := lexer^;
     token, _, ok := get_next_token(lexer);
     lexer^ = cpy;
-    if !ok do return false;
-    return token.kind == kind;
+    if !ok do return {}, false;
+    return token, token.kind == kind;
 }
 
 expect :: proc(lexer: ^Lexer, kind: Token_Kind) -> Token {
@@ -171,7 +177,15 @@ scan_identifier :: proc(lexer: ^Lexer) -> string {
 scan_string :: proc(lexer: ^Lexer) -> string {
     assert(lexer.text[0] == '"');
     end := 1;
-    for end < len(lexer.text)-1 && lexer.text[end] != '"' {
+    escape := false;
+    for end < len(lexer.text)-1 {
+        if !escape {
+            if lexer.text[end] == '\\' do escape = true;
+            else if lexer.text[end] == '"' do break;
+        }
+        else {
+            escape = false;
+        }
         end += 1;
     }
     end += 1;
@@ -204,17 +218,21 @@ Token_Kind :: enum {
     Switch,
     Enum,
     Null,
+    True,
+    False,
 
     Identifier,
     String,
     Number,
+
+    Directive_Foreign,
+    Directive_Include,
 
     Assign,
     Semicolon,
     Colon,
     Comma,
     Period,
-    Caret,
 
     LParen,
     RParen,
@@ -229,14 +247,15 @@ Token_Kind :: enum {
     Divide,
     Mod,
     Mod_Mod,
-    Ampersand, // & bit AND
+    Ampersand, // & serves double-duty as binary bitwise AND and unary address-of
     Shift_Left,
     Shift_Right, MUL_END = Shift_Right,
 
     Plus, ADD_BEGIN = Plus,
     Minus,
-    Bit_Xor, // ~ bit XOR
-    Bit_Or, ADD_END = Bit_Or, // | bit OR
+    Bit_Not,
+    Caret, // ^ serves double-duty as binary bitwise XOR and unary postfix dereference
+    Bit_Or, ADD_END = Bit_Or,
 
     Equal_To, CMP_BEGIN = Equal_To,
     Not_Equal,
@@ -248,7 +267,7 @@ Token_Kind :: enum {
     Not, // !
 
     And, // &&
-    Or, // ||
+    Or,  // ||
 }
 
 Keyword_Mapping :: struct {
@@ -264,4 +283,6 @@ keyword_mapping := [?]Keyword_Mapping {
     {"enum",   .Enum},
     {"switch", .Switch},
     {"null",   .Null},
+    {"true",   .True},
+    {"false",  .False},
 };

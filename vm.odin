@@ -2,6 +2,8 @@ package main
 
 import "core:fmt"
 
+/*
+
 RZ :: 0;
 RFP :: 1;
 RSP :: 2;
@@ -130,3 +132,5 @@ inst :: proc(vm: ^VM, k: Instruction_Kind, p1: int, p2: int = 0, p3: int = 0) {
 user_reg :: proc(reg: int) -> int {
 	return RUSER + reg;
 }
+
+*/
