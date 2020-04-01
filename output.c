@@ -85,6 +85,19 @@ void basic_stuff() {
     else {
         print_string((String){"foo is greater than 2 and less than 10", 38});
     }
+    print_string((String){"while loop:", 11});
+    int x = 5;
+    while (x >= 0) {
+        print_int(x);
+        x = x - 1;
+    }
+
+    print_string((String){"\n", 1});
+    print_string((String){"for loop:", 9});
+    for (int i = 0; i < 6; i = i + 1) {
+        print_int(i);
+    }
+
 }
 
 void pointers() {

@@ -32,23 +32,34 @@ parse_scope :: proc(lexer: ^Lexer) -> ^Ast_Scope {
     current_scope = scope;
     defer current_scope = old_scope;
 
-    nodes: [dynamic]^Ast_Node;
-    node_loop: for {
-        token, ok := peek(lexer);
-        if !ok do break;
+    statements: [dynamic]^Ast_Node;
+    for {
+        statement := parse_single_statement(lexer);
+        if statement == nil do break;
+        append(&statements, statement);
+    }
+    scope.nodes = statements;
+    return scope;
+}
 
-        node: ^Ast_Node;
+parse_single_statement :: proc(lexer: ^Lexer) -> ^Ast_Node {
+    statement_loop: for {
+        token, ok := peek(lexer);
+        if !ok do return nil;
+
         #partial
         switch token.kind {
-            case .Var:    node = NODE(parse_var(lexer, true));
-            case .Proc:   node = NODE(parse_proc(lexer));
-            case .Struct: node = NODE(parse_struct(lexer));
-            case .Return: node = NODE(parse_return(lexer));
-            case .If:     node = NODE(parse_if(lexer));
-            case .RCurly: break node_loop;
+            case .Var:    return NODE(parse_var(lexer, true));
+            case .Proc:   return NODE(parse_proc(lexer));
+            case .Struct: return NODE(parse_struct(lexer));
+            case .Return: return NODE(parse_return(lexer));
+            case .If:     return NODE(parse_if(lexer));
+            case .While:  return NODE(parse_while(lexer));
+            case .For:    return NODE(parse_for(lexer));
+            case .RCurly: return nil;
             case .Line_Comment: {
                 get_next_token(lexer);
-                continue node_loop;
+                continue statement_loop;
             }
             case: {
                 root_expr := parse_expr(lexer);
@@ -62,14 +73,14 @@ parse_scope :: proc(lexer: ^Lexer) -> ^Ast_Scope {
                         rhs := parse_expr(lexer);
                         assign := make_node(Ast_Assign);
                         assign^ = Ast_Assign{token.kind, lhs, rhs};
-                        node = NODE(assign);
                         expect(lexer, .Semicolon);
+                        return NODE(assign);
                     }
                     case .Semicolon: {
                         get_next_token(lexer);
                         expr_stmt := make_node(Ast_Expr_Statement);
                         expr_stmt.expr = root_expr;
-                        node = NODE(expr_stmt);
+                        return NODE(expr_stmt);
                     }
                     case: {
                         unimplemented(fmt.tprint(token.kind));
@@ -77,11 +88,10 @@ parse_scope :: proc(lexer: ^Lexer) -> ^Ast_Scope {
                 }
             }
         }
-        assert(node != nil);
-        append(&nodes, node);
     }
-    scope.nodes = nodes;
-    return scope;
+
+    unreachable();
+    return {};
 }
 
 parse_var :: proc(lexer: ^Lexer, require_semicolon: bool) -> ^Ast_Var {
@@ -295,6 +305,35 @@ parse_if :: proc(lexer: ^Lexer) -> ^Ast_If {
     }
 
     return if_statement;
+}
+
+parse_while :: proc(lexer: ^Lexer) -> ^Ast_While {
+    expect(lexer, .While);
+    expect(lexer, .LParen);
+    condition := parse_expr(lexer);
+    expect(lexer, .RParen);
+    body := parse_body(lexer);
+    while_loop := make_node(Ast_While);
+    while_loop.condition = condition;
+    while_loop.body = body;
+    return while_loop;
+}
+
+parse_for :: proc(lexer: ^Lexer) -> ^Ast_For {
+    expect(lexer, .For);
+    expect(lexer, .LParen);
+    pre_statement := parse_single_statement(lexer);
+    condition := parse_expr(lexer);
+    expect(lexer, .Semicolon);
+    post_statement := parse_single_statement(lexer);
+    expect(lexer, .RParen);
+    body := parse_body(lexer);
+    for_loop := make_node(Ast_For);
+    for_loop.pre_statement = pre_statement;
+    for_loop.condition = condition;
+    for_loop.post_statement = post_statement;
+    for_loop.body = body;
+    return for_loop;
 }
 
 parse_return :: proc(lexer: ^Lexer) -> ^Ast_Return {
@@ -595,6 +634,8 @@ Ast_Node :: struct {
         Ast_Proc,
         Ast_Struct,
         Ast_If,
+        Ast_While,
+        Ast_For,
         Ast_Expr,
         Ast_Expr_Statement,
         Ast_Typespec,
@@ -666,6 +707,18 @@ Ast_If :: struct {
     body: ^Ast_Scope,
     else_ifs: [dynamic]^Ast_If,
     else_body: ^Ast_Scope,
+}
+
+Ast_While :: struct {
+    condition: ^Ast_Expr,
+    body: ^Ast_Scope,
+}
+
+Ast_For :: struct {
+    pre_statement: ^Ast_Node,
+    condition: ^Ast_Expr,
+    post_statement: ^Ast_Node,
+    body: ^Ast_Scope,
 }
 
 Ast_Assign :: struct {

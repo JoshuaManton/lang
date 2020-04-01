@@ -34,6 +34,19 @@ proc basic_stuff() {
     else {
         print_string("foo is greater than 2 and less than 10");
     }
+
+    print_string("while loop:");
+    var x: int = 5;
+    while (x >= 0) {
+        print_int(x);
+        x = x - 1;
+    }
+    print_string("\n");
+
+    print_string("for loop:");
+    for (var i: int = 0; i < 6; i = i + 1;) { // todo(josh): make this not require a semicolon at the end
+        print_int(i);
+    }
 }
 
 proc pointers() {

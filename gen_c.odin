@@ -82,22 +82,24 @@ indent :: proc(sb: ^strings.Builder) {
     }
 }
 
-c_print_node :: proc(sb: ^strings.Builder, node: ^Ast_Node) {
+c_print_node :: proc(sb: ^strings.Builder, node: ^Ast_Node, semicolon_and_newline := true) {
     switch kind in &node.kind {
         case Ast_File:       c_print_file  (sb, &kind);
         case Ast_Scope:      c_print_scope (sb, &kind);
-        case Ast_Var:        c_print_var   (sb, &kind, true, true);
+        case Ast_Var:        c_print_var   (sb, &kind, semicolon_and_newline);
         case Ast_Proc:       c_print_proc  (sb, &kind);
+        case Ast_Return:     c_print_return(sb, &kind);
         case Ast_Struct:     c_print_struct(sb, &kind);
         case Ast_If:         c_print_if    (sb, &kind);
-        case Ast_Return:     c_print_return(sb, &kind);
-        case Ast_Assign:     c_print_assign(sb, &kind);
+        case Ast_While:      c_print_while (sb, &kind);
+        case Ast_For:        c_print_for   (sb, &kind);
+        case Ast_Assign:     c_print_assign(sb, &kind, semicolon_and_newline);
         case Ast_Identifier: sbprint(sb, kind.name);
         case Ast_Typespec:   panic("shouldn't have typespec here");
         case Ast_Expr:       panic("shouldn't get in here with an Ast_Expr, only Ast_Expr_Statement");
         case Ast_Expr_Statement: {
             c_print_expr(sb, kind.expr);
-            sbprint(sb, ";\n");
+            if semicolon_and_newline do sbprint(sb, ";\n");
         }
         case: panic(tprint(kind));
     }
@@ -114,7 +116,7 @@ c_print_scope :: proc(sb: ^strings.Builder, scope: ^Ast_Scope) {
     }
 }
 
-c_print_var :: proc(sb: ^strings.Builder, var: ^Ast_Var, semicolon: bool, newline: bool) {
+c_print_var :: proc(sb: ^strings.Builder, var: ^Ast_Var, semicolon_and_newline: bool) {
     sbprint(sb, c_print_typespec(var.typespec, var.name));
     sbprint(sb, " = ");
     if var.expr != nil {
@@ -123,8 +125,7 @@ c_print_var :: proc(sb: ^strings.Builder, var: ^Ast_Var, semicolon: bool, newlin
     else {
         sbprint(sb, "{0}");
     }
-    if semicolon do sbprint(sb, ";");
-    if newline   do sbprint(sb, "\n");
+    if semicolon_and_newline do sbprint(sb, ";\n");
 }
 
 c_print_proc :: proc(sb: ^strings.Builder, procedure: ^Ast_Proc) {
@@ -143,7 +144,7 @@ c_print_proc :: proc(sb: ^strings.Builder, procedure: ^Ast_Proc) {
     for param in procedure.params {
         sbprint(sb, comma);
         comma = ", ";
-        c_print_var(sb, param, false, false);
+        c_print_var(sb, param, false);
     }
     sbprint(sb, ") {\n");
     c_indent_level += 1;
@@ -153,10 +154,19 @@ c_print_proc :: proc(sb: ^strings.Builder, procedure: ^Ast_Proc) {
     sbprint(sb, "}\n\n");
 }
 
+c_print_return :: proc(sb: ^strings.Builder, return_statement: ^Ast_Return) {
+    sbprint(sb, "return");
+    if return_statement.expr != nil {
+        sbprint(sb, " ");
+        c_print_expr(sb, return_statement.expr);
+    }
+    sbprint(sb, ";\n");
+}
+
 c_print_struct :: proc(sb: ^strings.Builder, structure: ^Ast_Struct) {
     sbprint(sb, "typedef struct {\n");
     for field in structure.fields {
-        c_print_var(sb, field, true, true);
+        c_print_var(sb, field, true);
     }
     sbprint(sb, "} ", structure.name, ";\n\n");
 }
@@ -188,13 +198,30 @@ c_print_if :: proc(sb: ^strings.Builder, if_statement: ^Ast_If) {
     }
 }
 
-c_print_return :: proc(sb: ^strings.Builder, return_statement: ^Ast_Return) {
-    sbprint(sb, "return");
-    if return_statement.expr != nil {
-        sbprint(sb, " ");
-        c_print_expr(sb, return_statement.expr);
-    }
-    sbprint(sb, ";\n");
+c_print_while :: proc(sb: ^strings.Builder, while_loop: ^Ast_While) {
+    sbprint(sb, "while (");
+    c_print_expr(sb, while_loop.condition);
+    sbprint(sb, ") {\n");
+    c_indent_level += 1;
+    c_print_scope(sb, while_loop.body);
+    c_indent_level -= 1;
+    indent(sb);
+    sbprint(sb, "}\n\n");
+}
+
+c_print_for :: proc(sb: ^strings.Builder, for_loop: ^Ast_For) {
+    sbprint(sb, "for (");
+    c_print_node(sb, for_loop.pre_statement, false);
+    sbprint(sb, "; ");
+    c_print_expr(sb, for_loop.condition);
+    sbprint(sb, "; ");
+    c_print_node(sb, for_loop.post_statement, false);
+    sbprint(sb, ") {\n");
+    c_indent_level += 1;
+    c_print_scope(sb, for_loop.body);
+    c_indent_level -= 1;
+    indent(sb);
+    sbprint(sb, "}\n\n");
 }
 
 c_print_expr :: proc(sb: ^strings.Builder, expr: ^Ast_Expr) {
@@ -363,11 +390,11 @@ c_print_op :: proc(sb: ^strings.Builder, op: Operator, with_spaces: bool) {
     if with_spaces do sbprint(sb, " ");
 }
 
-c_print_assign :: proc(sb: ^strings.Builder, assign: ^Ast_Assign) {
+c_print_assign :: proc(sb: ^strings.Builder, assign: ^Ast_Assign, semicolon_and_newline: bool) {
     c_print_expr(sb, assign.lhs);
     c_print_assign_op(sb, assign.op, true);
     c_print_expr(sb, assign.rhs);
-    sbprint(sb, ";\n");
+    if semicolon_and_newline do sbprint(sb, ";\n");
 }
 
 sbprint :: fmt.sbprint;

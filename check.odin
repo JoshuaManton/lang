@@ -136,6 +136,8 @@ typecheck_node :: proc(node: ^Ast_Node) {
         case Ast_Proc:           typecheck_proc(&kind);       assert(kind.type != nil);
         case Ast_Struct:         typecheck_struct(&kind);     assert(kind.type != nil);
         case Ast_If:             typecheck_if(&kind);
+        case Ast_While:          typecheck_while(&kind);
+        case Ast_For:            typecheck_for(&kind);
         case Ast_Return:         typecheck_return(&kind);
         case Ast_Expr:           panic("there should be no Ast_Exprs here, only Ast_Expr_Statements");
         case Ast_Expr_Statement: typecheck_expr(kind.expr);
@@ -233,6 +235,14 @@ typecheck_proc :: proc(procedure: ^Ast_Proc) {
     }
 }
 
+typecheck_return :: proc(return_statement: ^Ast_Return) {
+    if return_statement.expr != nil {
+        typecheck_expr(return_statement.expr);
+        assert(return_statement.expr.type != nil);
+        assert(NODE(return_statement).enclosing_procedure.return_typespec.type == return_statement.expr.type);
+    }
+}
+
 typecheck_struct :: proc(structure: ^Ast_Struct) {
     fields: [dynamic]Field;
     for field in structure.fields {
@@ -258,12 +268,20 @@ typecheck_if :: proc(if_statement: ^Ast_If) {
     }
 }
 
-typecheck_return :: proc(return_statement: ^Ast_Return) {
-    if return_statement.expr != nil {
-        typecheck_expr(return_statement.expr);
-        assert(return_statement.expr.type != nil);
-        assert(NODE(return_statement).enclosing_procedure.return_typespec.type == return_statement.expr.type);
-    }
+typecheck_while :: proc(while_loop: ^Ast_While) {
+    typecheck_expr(while_loop.condition);
+    assert(while_loop.condition.type != nil);
+    assert(while_loop.condition.type == type_bool);
+    typecheck_scope(while_loop.body);
+}
+
+typecheck_for :: proc(for_loop: ^Ast_For) {
+    typecheck_node(for_loop.pre_statement);
+    typecheck_expr(for_loop.condition);
+    typecheck_node(for_loop.post_statement);
+    assert(for_loop.condition.type != nil);
+    assert(for_loop.condition.type == type_bool);
+    typecheck_scope(for_loop.body);
 }
 
 typecheck_expr :: proc(expr: ^Ast_Expr) {

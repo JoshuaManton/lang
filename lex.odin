@@ -97,13 +97,13 @@ peek_kind :: proc(lexer: ^Lexer, kind: Token_Kind) -> (Token, bool) {
     return token, token.kind == kind;
 }
 
-expect :: proc(lexer: ^Lexer, kind: Token_Kind) -> Token {
+expect :: proc(lexer: ^Lexer, kind: Token_Kind, loc := #caller_location) -> Token {
     token, _, ok := get_next_token(lexer);
     if !ok {
-        assert(false, fmt.tprint("Unexpected end of text"));
+        assert(false, fmt.tprint("Unexpected end of text from: ", loc));
     }
     if token.kind != kind {
-        assert(false, fmt.tprint("Unexpected token: ", token.slice));
+        assert(false, fmt.tprint("Unexpected token: ", token.slice, " from: ", loc));
     }
     return token;
 }
@@ -211,10 +211,10 @@ Token :: struct {
 }
 
 Token_Kind :: enum {
-    _,
-
     If,
     Else,
+    While,
+    For,
 
     Var,
     Proc,
@@ -283,6 +283,8 @@ Keyword_Mapping :: struct {
 keyword_mapping := [?]Keyword_Mapping {
     {"if",     .If},
     {"else",   .Else},
+    {"while",  .While},
+    {"for",    .For},
     {"var",    .Var},
     {"proc",   .Proc},
     {"return", .Return},
