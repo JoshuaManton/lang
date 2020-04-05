@@ -7,6 +7,7 @@ import "core:strconv"
 global_scope: ^Ast_Scope;
 current_scope: ^Ast_Scope;
 current_procedure: ^Ast_Proc;
+current_loop_scope: ^Ast_Scope;
 
 init_parser :: proc() {
     global_scope = make_node(Ast_Scope);
@@ -24,8 +25,13 @@ parse_file :: proc(lexer: ^Lexer, filename: string) -> ^Ast_File {
     return file;
 }
 
-parse_scope :: proc(lexer: ^Lexer) -> ^Ast_Scope {
+parse_scope :: proc(lexer: ^Lexer, push_loop_scope := false) -> ^Ast_Scope {
     scope := make_node(Ast_Scope);
+
+    old_loop_scope := current_loop_scope;
+    if push_loop_scope do current_loop_scope = scope;
+    defer if push_loop_scope do current_loop_scope = old_loop_scope;
+
     scope.parent = current_scope;
     old_scope := current_scope;
 
@@ -56,13 +62,28 @@ parse_single_statement :: proc(lexer: ^Lexer) -> ^Ast_Node {
             case .If:     return NODE(parse_if(lexer));
             case .While:  return NODE(parse_while(lexer));
             case .For:    return NODE(parse_for(lexer));
+            case .Defer:  return NODE(parse_defer(lexer));
+            case .LCurly: return NODE(parse_body(lexer));
             case .RCurly: return nil;
-            case .LCurly: {
-                return NODE(parse_body(lexer));
-            }
             case .Line_Comment: {
                 get_next_token(lexer);
                 continue statement_loop;
+            }
+            case .Continue: {
+                get_next_token(lexer);
+                expect(lexer, .Semicolon);
+                continue_node := make_node(Ast_Continue);
+                assert(current_loop_scope != nil);
+                continue_node.scope_to_continue = current_loop_scope;
+                return NODE(continue_node);
+            }
+            case .Break: {
+                get_next_token(lexer);
+                expect(lexer, .Semicolon);
+                break_node := make_node(Ast_Break);
+                assert(current_loop_scope != nil);
+                break_node.scope_to_break = current_loop_scope;
+                return NODE(break_node);
             }
             case: {
                 root_expr := parse_expr(lexer);
@@ -98,7 +119,9 @@ parse_single_statement :: proc(lexer: ^Lexer) -> ^Ast_Node {
 }
 
 parse_var :: proc(lexer: ^Lexer, require_semicolon: bool) -> ^Ast_Var {
-    expect(lexer, .Var);
+    if _, ok := peek_kind(lexer, .Var); ok {
+        get_next_token(lexer);
+    }
     name_token := expect(lexer, .Identifier);
     expect(lexer, .Colon);
 
@@ -243,9 +266,9 @@ parse_proc :: proc(lexer: ^Lexer) -> ^Ast_Proc {
     return procedure;
 }
 
-parse_body :: proc(lexer: ^Lexer) -> ^Ast_Scope {
+parse_body :: proc(lexer: ^Lexer, push_loop_scope := false) -> ^Ast_Scope {
     expect(lexer, .LCurly);
-    block := parse_scope(lexer);
+    block := parse_scope(lexer, push_loop_scope);
     expect(lexer, .RCurly);
     return block;
 }
@@ -255,18 +278,25 @@ parse_struct :: proc(lexer: ^Lexer) -> ^Ast_Struct {
 
     expect(lexer, .Struct);
     name_token := expect(lexer, .Identifier);
-    block := parse_body(lexer);
-    for node in block.nodes {
-        if _, ok := node.kind.(Ast_Var); !ok {
-            assert(false, "Only vars are allowed in struct bodies");
+    expect(lexer, .LCurly);
+
+    field_loop: for {
+        token, ok := peek(lexer);
+        assert(ok);
+        #partial
+        switch token.kind {
+            case .RCurly: {
+                get_next_token(lexer);
+                break field_loop;
+            }
+            case: {
+                var := parse_var(lexer, true);
+                append(&structure.fields, var);
+            }
         }
-        var := &node.kind.(Ast_Var);
-        assert(var != nil);
-        append(&structure.fields, var);
     }
 
     structure.name = name_token.slice;
-    structure.block = block;
 
     register_declaration(current_scope, structure.name, Decl_Struct{structure});
 
@@ -296,7 +326,7 @@ parse_while :: proc(lexer: ^Lexer) -> ^Ast_While {
     expect(lexer, .LParen);
     condition := parse_expr(lexer);
     expect(lexer, .RParen);
-    body := parse_body(lexer);
+    body := parse_body(lexer, true);
     while_loop := make_node(Ast_While);
     while_loop.condition = condition;
     while_loop.body = body;
@@ -311,7 +341,7 @@ parse_for :: proc(lexer: ^Lexer) -> ^Ast_For {
     expect(lexer, .Semicolon);
     post_statement := parse_single_statement(lexer);
     expect(lexer, .RParen);
-    body := parse_body(lexer);
+    body := parse_body(lexer, true);
     for_loop := make_node(Ast_For);
     for_loop.pre_statement = pre_statement;
     for_loop.condition = condition;
@@ -320,8 +350,18 @@ parse_for :: proc(lexer: ^Lexer) -> ^Ast_For {
     return for_loop;
 }
 
+parse_defer :: proc(lexer: ^Lexer) -> ^Ast_Defer {
+    expect(lexer, .Defer);
+    stmt := parse_single_statement(lexer);
+    defer_stmt := make_node(Ast_Defer);
+    defer_stmt.stmt = stmt;
+    append(&current_scope.all_defers, defer_stmt);
+    return defer_stmt;
+}
+
 parse_return :: proc(lexer: ^Lexer) -> ^Ast_Return {
     return_statement := make_node(Ast_Return);
+    return_statement.matching_proc = current_procedure;
 
     expect(lexer, .Return);
     if _, ok := peek_kind(lexer, .Semicolon); !ok {
@@ -639,6 +679,9 @@ Ast_Node :: struct {
         Ast_Identifier,
         Ast_Assign,
         Ast_Return,
+        Ast_Defer,
+        Ast_Continue,
+        Ast_Break,
     },
     magic: int,
     s: int,
@@ -673,6 +716,8 @@ Ast_Scope :: struct {
     parent: ^Ast_Scope,
     nodes: [dynamic]^Ast_Node,
     declarations: [dynamic]^Declaration,
+    all_defers: [dynamic]^Ast_Defer,
+    defer_stack: [dynamic]^Ast_Defer,
 }
 
 Ast_Var :: struct {
@@ -694,7 +739,6 @@ Ast_Proc :: struct {
 
 Ast_Struct :: struct {
     name: string,
-    block: ^Ast_Scope,
     fields: [dynamic]^Ast_Var,
     type: ^Type_Struct,
 }
@@ -724,6 +768,19 @@ Ast_Assign :: struct {
 
 Ast_Return :: struct {
     expr: ^Ast_Expr, // note(josh): can be nil
+    matching_proc: ^Ast_Proc,
+}
+
+Ast_Continue :: struct {
+    scope_to_continue: ^Ast_Scope,
+}
+
+Ast_Break :: struct {
+    scope_to_break: ^Ast_Scope,
+}
+
+Ast_Defer :: struct {
+    stmt: ^Ast_Node,
 }
 
 Ast_Expr_Statement :: struct {

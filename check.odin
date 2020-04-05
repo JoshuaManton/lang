@@ -144,6 +144,9 @@ typecheck_node :: proc(node: ^Ast_Node) {
         case Ast_Return:         typecheck_return(&kind);
         case Ast_Expr_Statement: typecheck_expr(kind.expr, nil);
         case Ast_Assign:         typecheck_assign(&kind);
+        case Ast_Defer:          typecheck_defer(&kind);
+        case Ast_Continue:       // do nothing
+        case Ast_Break:          // do nothing
 
         case Ast_Typespec: panic("no typespecs here");
         case Ast_Expr:     panic("there should be no Ast_Exprs here, only Ast_Expr_Statements");
@@ -285,6 +288,11 @@ typecheck_assign :: proc(assign: ^Ast_Assign) {
     assert(assign.lhs.type == assign.rhs.type);
     assert(assign.lhs.mode == .LValue);
     assert(assign.rhs.mode != .No_Value);
+}
+
+typecheck_defer :: proc(defer_statement: ^Ast_Defer) {
+    assert(defer_statement.stmt != nil);
+    typecheck_node(defer_statement.stmt);
 }
 
 typecheck_expr :: proc(expr: ^Ast_Expr, expected_type: ^Type) {

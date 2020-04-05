@@ -1,10 +1,10 @@
-proc malloc(var size: int) : rawptr #foreign;
-proc free(var ptr: rawptr) #foreign;
+proc malloc(size: int) : rawptr #foreign;
+proc free(ptr: rawptr) #foreign;
 
-proc assert(var cond: bool) #foreign;
-proc print_string(var str: string) #foreign;
-proc print_int(var i: int) #foreign;
-proc print_float(var i: float) #foreign;
+proc assert(cond: bool) #foreign;
+proc print_string(str: string) #foreign;
+proc print_int(i: int) #foreign;
+proc print_float(i: float) #foreign;
 
 proc variables() {
     print_string("\n\n----- variables -----\n");
@@ -123,7 +123,77 @@ proc procedures() {
     print_string("\n\n----- procedures -----\n");
 
     var result: int = foozle();
+    assert(result == 5);
     print_int(result);
+}
+
+proc defer_statements() {
+    print_string("\n\n----- defer -----\n");
+
+    //
+    var x: int = 111;
+    defer assert(x == 222);
+    defer x = 222;
+    defer assert(x == 123);
+
+    //
+    assert(x == 111);
+    {
+        defer x = 123;
+    }
+    assert(x == 123);
+    defer print_string("This defer should run!");
+
+    //
+    for (var i: int = 0; i < 4; i = i + 1;) {
+        defer print_int(i);
+        var other: int = 123;
+        while (other < 128) {
+            defer print_string("Cool.");
+            other = other + 1;
+            if (other < 125) {
+                continue;
+            }
+
+            if (other > 125) {
+                break;
+            }
+        }
+
+        if (true) {
+            continue;
+        }
+
+        defer assert(false);
+    }
+
+    //
+    if (true) {
+        return;
+    }
+
+    // note(josh): should never hit this
+    defer assert(false);
+}
+
+
+
+struct Vector3 {
+    x: float;
+    y: float;
+    z: float;
+}
+
+proc structs() {
+    print_string("\n\n----- structs -----\n");
+
+    var v: Vector3;
+    v.x = 1;
+    v.y = 4;
+    v.z = 9;
+    print_float(v.x);
+    print_float(v.y);
+    print_float(v.z);
 }
 
 proc allocation() {
@@ -139,6 +209,8 @@ proc main() {
     arrays();
     strings();
     procedures();
+    defer_statements();
+    structs();
     allocation();
 
     // assert(true == false);

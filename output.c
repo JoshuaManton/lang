@@ -155,13 +155,81 @@ void strings() {
 int foozle() {
     int a = 2;
     int b = 3;
-    return a + b;
+    int __temp_466 = a + b;
+    return __temp_466;
 }
 
 void procedures() {
     print_string((String){"\n\n----- procedures -----\n", 25});
     int result = foozle();
+    assert(result == 5);
     print_int(result);
+}
+
+void defer_statements() {
+    print_string((String){"\n\n----- defer -----\n", 20});
+    int x = 111;
+    assert(x == 111);
+    {
+        x = 123;
+    }
+    assert(x == 123);
+    for (int i = 0; i < 4; i = i + 1) {
+        int other = 123;
+        while (other < 128) {
+            other = other + 1;
+            if (other < 125) {
+                print_string((String){"Cool.", 5});
+                continue;
+            }
+
+            if (other > 125) {
+                print_string((String){"Cool.", 5});
+                break;
+            }
+
+            print_string((String){"Cool.", 5});
+        }
+
+        if (true) {
+            print_int(i);
+            continue;
+        }
+
+        assert(false);
+        print_int(i);
+    }
+
+    if (true) {
+        print_string((String){"This defer should run!", 22});
+        assert(x == 123);
+        x = 222;
+        assert(x == 222);
+        return;
+    }
+
+    assert(false);
+    print_string((String){"This defer should run!", 22});
+    assert(x == 123);
+    x = 222;
+    assert(x == 222);
+}
+
+typedef struct {
+    float x;
+    float y;
+    float z;
+} Vector3;
+
+void structs() {
+    print_string((String){"\n\n----- structs -----\n", 22});
+    Vector3 v = {0};
+    v.x = 1;
+    v.y = 4;
+    v.z = 9;
+    print_float(v.x);
+    print_float(v.y);
+    print_float(v.z);
 }
 
 void allocation() {
@@ -176,6 +244,8 @@ void main() {
     arrays();
     strings();
     procedures();
+    defer_statements();
+    structs();
     allocation();
 }
 

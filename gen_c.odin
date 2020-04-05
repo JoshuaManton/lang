@@ -93,9 +93,18 @@ c_print_scope :: proc(sb: ^strings.Builder, scope: ^Ast_Scope, do_curlies: bool)
         c_indent_level += 1;
     }
     for node in scope.nodes {
+        if _, ok := node.kind.(Ast_Defer); ok {
+            defer_stmt := &node.kind.(Ast_Defer);
+            append(&scope.defer_stack, defer_stmt);
+            continue;
+        }
+
         if do_curlies do indent(sb);
         c_print_node(sb, node);
     }
+
+    emit_defers_from_scope_to_scope(sb, scope, scope);
+
     if do_curlies {
         c_indent_level -= 1;
         indent(sb);
@@ -103,11 +112,28 @@ c_print_scope :: proc(sb: ^strings.Builder, scope: ^Ast_Scope, do_curlies: bool)
     }
 }
 
+emit_defers_from_scope_to_scope :: proc(sb: ^strings.Builder, from: ^Ast_Scope, to: ^Ast_Scope, indent_first_element := true) {
+    current := from;
+    for {
+        for idx := len(current.defer_stack)-1; idx >= 0; idx -= 1 {
+            defer_stmt := current.defer_stack[idx];
+            if idx != len(current.defer_stack)-1 || indent_first_element do indent(sb);
+            c_print_node(sb, defer_stmt.stmt);
+        }
+
+        if current == to {
+            return;
+        }
+
+        current = current.parent;
+    }
+}
+
 c_print_node :: proc(sb: ^strings.Builder, node: ^Ast_Node, semicolon_and_newline := true) {
     switch kind in &node.kind {
         case Ast_File:       c_print_file  (sb, &kind);
         case Ast_Scope:      c_print_scope (sb, &kind, true);
-        case Ast_Var:        c_print_var   (sb, &kind, semicolon_and_newline);
+        case Ast_Var:        c_print_var   (sb, &kind, semicolon_and_newline, true);
         case Ast_Proc:       c_print_proc  (sb, &kind);
         case Ast_Return:     c_print_return(sb, &kind);
         case Ast_Struct:     c_print_struct(sb, &kind);
@@ -116,6 +142,9 @@ c_print_node :: proc(sb: ^strings.Builder, node: ^Ast_Node, semicolon_and_newlin
         case Ast_For:        c_print_for   (sb, &kind);
         case Ast_Assign:     c_print_assign(sb, &kind, semicolon_and_newline);
         case Ast_Identifier: sbprint(sb, kind.name);
+        case Ast_Continue:   emit_defers_from_scope_to_scope(sb, node.enclosing_scope, kind.scope_to_continue, false); indent(sb); sbprint(sb, "continue;\n");
+        case Ast_Break:      emit_defers_from_scope_to_scope(sb, node.enclosing_scope, kind.scope_to_break, false);    indent(sb); sbprint(sb, "break;\n");
+        case Ast_Defer:      panic("shouldn't have defer here");
         case Ast_Typespec:   panic("shouldn't have typespec here");
         case Ast_Expr:       panic("shouldn't get in here with an Ast_Expr, only Ast_Expr_Statement");
         case Ast_Expr_Statement: {
@@ -126,14 +155,16 @@ c_print_node :: proc(sb: ^strings.Builder, node: ^Ast_Node, semicolon_and_newlin
     }
 }
 
-c_print_var :: proc(sb: ^strings.Builder, var: ^Ast_Var, semicolon_and_newline: bool) {
+c_print_var :: proc(sb: ^strings.Builder, var: ^Ast_Var, semicolon_and_newline: bool, zero_initialize: bool) {
     sbprint(sb, c_print_typespec(var.typespec, var.name));
-    sbprint(sb, " = ");
     if var.expr != nil {
+        sbprint(sb, " = ");
         c_print_expr(sb, var.expr);
     }
     else {
-        sbprint(sb, "{0}");
+        if zero_initialize {
+            sbprint(sb, " = {0}");
+        }
     }
     if semicolon_and_newline do sbprint(sb, ";\n");
 }
@@ -154,7 +185,7 @@ c_print_proc :: proc(sb: ^strings.Builder, procedure: ^Ast_Proc) {
     for param in procedure.params {
         sbprint(sb, comma);
         comma = ", ";
-        c_print_var(sb, param, false);
+        c_print_var(sb, param, false, false);
     }
     sbprint(sb, ") ");
     c_print_scope(sb, procedure.block, true);
@@ -162,19 +193,29 @@ c_print_proc :: proc(sb: ^strings.Builder, procedure: ^Ast_Proc) {
 }
 
 c_print_return :: proc(sb: ^strings.Builder, return_statement: ^Ast_Return) {
+    if return_statement.expr != nil {
+        sbprint(sb, c_print_typespec(return_statement.matching_proc.return_typespec, aprint("__temp_", NODE(return_statement).s)), " = ");
+        c_print_expr(sb, return_statement.expr);
+        sbprint(sb, ";\n");
+    }
+    emit_defers_from_scope_to_scope(sb, NODE(return_statement).enclosing_scope, return_statement.matching_proc.block, false);
+    indent(sb);
     sbprint(sb, "return");
     if return_statement.expr != nil {
-        sbprint(sb, " ");
-        c_print_expr(sb, return_statement.expr);
+        sbprint(sb, " __temp_", NODE(return_statement).s);
     }
     sbprint(sb, ";\n");
 }
 
 c_print_struct :: proc(sb: ^strings.Builder, structure: ^Ast_Struct) {
     sbprint(sb, "typedef struct {\n");
+    c_indent_level += 1;
     for field in structure.fields {
-        c_print_var(sb, field, true);
+        indent(sb);
+        c_print_var(sb, field, true, false);
     }
+    c_indent_level -= 1;
+    indent(sb);
     sbprint(sb, "} ", structure.name, ";\n\n");
 }
 

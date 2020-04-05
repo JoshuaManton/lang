@@ -167,4 +167,5 @@ gv_name :: proc(node: ^Ast_Node) -> string {
 }
 */
 
+println :: fmt.println;
 tprint :: fmt.tprint;
