@@ -23,6 +23,8 @@ type_float: ^Type;
 type_bool: ^Type;
 type_string: ^Type;
 
+type_rawptr: ^Type;
+
 all_types: [dynamic]^Type;
 
 init_types :: proc() {
@@ -53,6 +55,7 @@ init_types :: proc() {
     type_bool = TYPE(make_type(Type_Primitive{}, 1)); register_declaration(global_scope, "bool", Decl_Type{type_bool});
 
     type_string = TYPE(make_type_struct([]Field{{"data", TYPE(get_or_make_type_ptr_to(type_byte))}, {"length", type_int}})); register_declaration(global_scope, "string", Decl_Type{type_string});
+    type_rawptr = TYPE(make_type(Type_Ptr{nil}, 8)); register_declaration(global_scope, "rawptr", Decl_Type{type_rawptr});
 }
 
 TYPE :: proc(k: ^$T) -> ^Type {
@@ -139,17 +142,11 @@ typecheck_node :: proc(node: ^Ast_Node) {
         case Ast_While:          typecheck_while(&kind);
         case Ast_For:            typecheck_for(&kind);
         case Ast_Return:         typecheck_return(&kind);
-        case Ast_Expr:           panic("there should be no Ast_Exprs here, only Ast_Expr_Statements");
-        case Ast_Expr_Statement: typecheck_expr(kind.expr);
-        case Ast_Typespec:       typecheck_typespec(&kind);   assert(kind.type != nil);
-        case Ast_Assign: {
-            assert(kind.op == .Assign); // todo(josh): handle +=, -=, <<=, etc
-            typecheck_expr(kind.lhs); assert(kind.lhs.type != nil);
-            typecheck_expr(kind.rhs); assert(kind.rhs.type != nil);
-            assert(kind.lhs.type == kind.rhs.type);
-            assert(kind.lhs.mode == .LValue);
-            assert(kind.rhs.mode != .No_Value);
-        }
+        case Ast_Expr_Statement: typecheck_expr(kind.expr, nil);
+        case Ast_Assign:         typecheck_assign(&kind);
+
+        case Ast_Typespec: panic("no typespecs here");
+        case Ast_Expr:     panic("there should be no Ast_Exprs here, only Ast_Expr_Statements");
         case: panic(tprint(node));
     }
 }
@@ -168,8 +165,8 @@ typecheck_identifier :: proc(ident: ^Ast_Identifier) {
 typecheck_var :: proc(var: ^Ast_Var) {
     typespec_type: ^Type;
     expr_type: ^Type;
-    if var.typespec != nil { typecheck_typespec(var.typespec); assert(var.typespec.type != nil); typespec_type = var.typespec.type; }
-    if var.expr     != nil { typecheck_expr(var.expr);         assert(var.expr.type != nil);     expr_type     = var.expr.type;     }
+    if var.typespec != nil { typecheck_typespec(var.typespec);        assert(var.typespec.type != nil); typespec_type = var.typespec.type; }
+    if var.expr     != nil { typecheck_expr(var.expr, typespec_type); assert(var.expr.type != nil);     expr_type     = var.expr.type;     }
     if typespec_type == nil && expr_type == nil {
         panic("Must supply either an expression or a type for a var decl");
     }
@@ -237,7 +234,9 @@ typecheck_proc :: proc(procedure: ^Ast_Proc) {
 
 typecheck_return :: proc(return_statement: ^Ast_Return) {
     if return_statement.expr != nil {
-        typecheck_expr(return_statement.expr);
+        declared_return_type := NODE(return_statement).enclosing_procedure.type;
+        assert(declared_return_type != nil);
+        typecheck_expr(return_statement.expr, TYPE(declared_return_type.return_type));
         assert(return_statement.expr.type != nil);
         assert(NODE(return_statement).enclosing_procedure.return_typespec.type == return_statement.expr.type);
     }
@@ -254,22 +253,17 @@ typecheck_struct :: proc(structure: ^Ast_Struct) {
 }
 
 typecheck_if :: proc(if_statement: ^Ast_If) {
-    typecheck_expr(if_statement.condition);
+    typecheck_expr(if_statement.condition, type_bool);
     assert(if_statement.condition.type != nil);
     assert(if_statement.condition.type == type_bool);
     typecheck_scope(if_statement.body);
-
-    for else_if in if_statement.else_ifs {
-        typecheck_if(else_if);
-    }
-
-    if if_statement.else_body != nil {
-        typecheck_scope(if_statement.else_body);
+    if if_statement.else_stmt != nil {
+        typecheck_node(if_statement.else_stmt);
     }
 }
 
 typecheck_while :: proc(while_loop: ^Ast_While) {
-    typecheck_expr(while_loop.condition);
+    typecheck_expr(while_loop.condition, type_bool);
     assert(while_loop.condition.type != nil);
     assert(while_loop.condition.type == type_bool);
     typecheck_scope(while_loop.body);
@@ -277,18 +271,27 @@ typecheck_while :: proc(while_loop: ^Ast_While) {
 
 typecheck_for :: proc(for_loop: ^Ast_For) {
     typecheck_node(for_loop.pre_statement);
-    typecheck_expr(for_loop.condition);
+    typecheck_expr(for_loop.condition, type_bool);
     typecheck_node(for_loop.post_statement);
     assert(for_loop.condition.type != nil);
     assert(for_loop.condition.type == type_bool);
     typecheck_scope(for_loop.body);
 }
 
-typecheck_expr :: proc(expr: ^Ast_Expr) {
+typecheck_assign :: proc(assign: ^Ast_Assign) {
+    assert(assign.op == .Assign); // todo(josh): handle +=, -=, <<=, etc
+    typecheck_expr(assign.lhs, nil); assert(assign.lhs.type != nil);
+    typecheck_expr(assign.rhs, assign.lhs.type); assert(assign.rhs.type != nil);
+    assert(assign.lhs.type == assign.rhs.type);
+    assert(assign.lhs.mode == .LValue);
+    assert(assign.rhs.mode != .No_Value);
+}
+
+typecheck_expr :: proc(expr: ^Ast_Expr, expected_type: ^Type) {
     switch kind in expr.kind {
         case Expr_Binary: {
-            typecheck_expr(kind.lhs);
-            typecheck_expr(kind.rhs);
+            typecheck_expr(kind.lhs, nil);
+            typecheck_expr(kind.rhs, nil);
             assert(kind.lhs.mode != .No_Value);
             assert(kind.rhs.mode != .No_Value);
             lhs_type := kind.lhs.type;
@@ -326,7 +329,7 @@ typecheck_expr :: proc(expr: ^Ast_Expr) {
             expr.mode = .RValue;
         }
         case Expr_Address_Of: {
-            typecheck_expr(kind.rhs);
+            typecheck_expr(kind.rhs, nil); // todo(josh): should we pass an expected type here?
             assert(kind.rhs.type != nil);
             assert(kind.rhs.mode == .LValue);
             rhs_type := kind.rhs.type;
@@ -334,7 +337,7 @@ typecheck_expr :: proc(expr: ^Ast_Expr) {
             expr.mode = .RValue;
         }
         case Expr_Dereference: {
-            typecheck_expr(kind.lhs);
+            typecheck_expr(kind.lhs, nil); // todo(josh): should we pass an expected type here?
             lhs_type := kind.lhs.type;
             ptr, ok := lhs_type.kind.(Type_Ptr);
             assert(ok);
@@ -342,8 +345,24 @@ typecheck_expr :: proc(expr: ^Ast_Expr) {
             expr.type = ptr.ptr_to;
             expr.mode = .LValue;
         }
+        case Expr_Cast: {
+            typecheck_typespec(kind.typespec);
+            assert(kind.typespec.type != nil);
+            typecheck_expr(kind.rhs, nil); // todo(josh): should we pass an expected type here?
+            assert(kind.rhs.type != nil);
+            if is_pointer_type(kind.typespec.type) && is_pointer_type(kind.rhs.type) {
+            }
+            else if is_numeric_type(kind.typespec.type) && is_numeric_type(kind.rhs.type) {
+            }
+            else {
+                assert(false, "invalid cast");
+            }
+
+            expr.type = kind.typespec.type;
+            expr.mode = .RValue;
+        }
         case Expr_Unary: {
-            typecheck_expr(kind.rhs);
+            typecheck_expr(kind.rhs, nil); // todo(josh): should we pass an expected type here?
             rhs_type := kind.rhs.type;
             assert(rhs_type != nil);
             #partial
@@ -356,12 +375,22 @@ typecheck_expr :: proc(expr: ^Ast_Expr) {
             expr.mode = .RValue;
         }
         case Expr_Number: {
-            // todo(josh): support more than just ints
-            expr.type = type_int;
+            if expected_type != nil {
+                assert(is_numeric_type(expected_type));
+                expr.type = expected_type;
+            }
+            else {
+                if kind.has_a_dot {
+                    expr.type = type_float;
+                }
+                else {
+                    expr.type = type_int;
+                }
+            }
             expr.mode = .RValue;
         }
         case Expr_Selector: {
-            typecheck_expr(kind.lhs);
+            typecheck_expr(kind.lhs, nil); // todo(josh): should we pass an expected type here?
             assert(kind.lhs.type != nil);
             structure, ok := kind.lhs.type.kind.(Type_Struct);
             assert(ok);
@@ -378,8 +407,8 @@ typecheck_expr :: proc(expr: ^Ast_Expr) {
             expr.mode = .LValue;
         }
         case Expr_Subscript: {
-            typecheck_expr(kind.lhs);
-            typecheck_expr(kind.index);
+            typecheck_expr(kind.lhs, nil); // todo(josh): should we pass an expected type here?
+            typecheck_expr(kind.index, type_int); // todo(josh): should we pass an expected type here?
             assert(kind.lhs.type != nil);
             assert(kind.index.type != nil);
 
@@ -395,17 +424,17 @@ typecheck_expr :: proc(expr: ^Ast_Expr) {
             expr.mode = .RValue;
         }
         case Expr_Call: {
-            typecheck_expr(kind.procedure_expr);
+            typecheck_expr(kind.procedure_expr, nil); // todo(josh): should we pass an expected type here?
             assert(kind.procedure_expr.type != nil);
             proc_type, ok := kind.procedure_expr.type.kind.(Type_Proc);
             assert(ok);
             assert(len(proc_type.param_types) == len(kind.params));
             for param, idx in kind.params {
-                typecheck_expr(param);
-                assert(param.type != nil);
-
                 target_type := proc_type.param_types[idx];
                 assert(target_type != nil);
+
+                typecheck_expr(param, target_type);
+                assert(param.type != nil);
                 assert(param.type == target_type);
             }
 
@@ -430,12 +459,20 @@ typecheck_expr :: proc(expr: ^Ast_Expr) {
         case Expr_True:  expr.type = type_bool; expr.mode = .RValue;
         case Expr_False: expr.type = type_bool; expr.mode = .RValue;
         case Expr_Paren: {
-            typecheck_expr(kind.expr);
+            typecheck_expr(kind.expr, expected_type);
             assert(kind.expr != nil);
             expr.type = kind.expr.type;
             expr.mode = kind.expr.mode;
         }
         case: panic(tprint(expr));
+    }
+
+    if expected_type != nil && expr.type != nil && expected_type != expr.type {
+        fmt.println("-------------------------------");
+        fmt.println(expr.kind);
+        fmt.println(expr.type);
+        fmt.println(expected_type);
+        panic("expr.type didn't match expected_type:");
     }
 }
 
@@ -453,9 +490,22 @@ get_type_through_declaration :: proc(decl: ^Declaration) -> ^Type {
 
 
 
+is_pointer_type :: proc(t: ^Type) -> bool {
+    _, ok := t.kind.(Type_Ptr);
+    return ok;
+}
+is_numeric_type :: proc(t: ^Type) -> bool {
+    return is_integer_type(t) || is_float_type(t);
+}
 is_integer_type :: proc(t: ^Type) -> bool {
     switch t {
         case type_i8, type_i16, type_i32, type_i64, type_u8, type_u16, type_u32, type_u64: return true;
+    }
+    return false;
+}
+is_float_type :: proc(t: ^Type) -> bool {
+    switch t {
+        case type_f32, type_f64: return true;
     }
     return false;
 }

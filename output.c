@@ -1,4 +1,5 @@
 #include <stdint.h>
+#include <stdlib.h>
 #include <assert.h>
 
 typedef int8_t  i8;
@@ -66,6 +67,11 @@ void variables() {
     assert(x != y);
     y = 123;
     assert(x == y);
+    int some_int = 123;
+    float some_float = 321;
+    print_float(some_float);
+    some_float = (float )some_int;
+    print_float(some_float);
 }
 
 void basic_stuff() {
@@ -74,6 +80,7 @@ void basic_stuff() {
     if (foo > 2) {
         print_string((String){"foo is greater than 2", 21});
     }
+
     if (foo < 2) {
         assert(false);
         print_string((String){"foo is less than 2", 18});
@@ -85,6 +92,8 @@ void basic_stuff() {
     else {
         print_string((String){"foo is greater than 2 and less than 10", 38});
     }
+
+
     print_string((String){"while loop:", 11});
     int x = 5;
     while (x >= 0) {
@@ -92,7 +101,7 @@ void basic_stuff() {
         x = x - 1;
     }
 
-    print_string((String){"\n", 1});
+    print_string((String){"", 0});
     print_string((String){"for loop:", 9});
     for (int i = 0; i < 6; i = i + 1) {
         print_int(i);
@@ -106,11 +115,11 @@ void pointers() {
     print_int(x);
     int *ptr = &x;
     assert(x == 11111);
-    *ptr = 44444;
+    (*ptr) = 44444;
     assert(x == 44444);
     print_int(x);
     int *(*ptr_to_ptr) = &ptr;
-    **ptr_to_ptr = 99999;
+    (*(*ptr_to_ptr)) = 99999;
     assert(x == 99999);
     print_int(x);
 }
@@ -121,7 +130,9 @@ void arrays() {
     int b = 2;
     a[b] = 123;
     print_int(a[b]);
-    int (*c)[8] = {0};
+    int (*c)[8] = &a;
+    (*c)[4] = 149;
+    print_int(a[4]);
     int *(d[8]) = {0};
     int *((*e)[8]) = {0};
     int (*((*f)[8]))[16] = {0};
@@ -153,6 +164,11 @@ void procedures() {
     print_int(result);
 }
 
+void allocation() {
+    print_string((String){"\n\n----- allocation -----\n", 25});
+    void *thing = malloc(128);
+}
+
 void main() {
     variables();
     basic_stuff();
@@ -160,5 +176,6 @@ void main() {
     arrays();
     strings();
     procedures();
+    allocation();
 }
 

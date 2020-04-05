@@ -57,6 +57,9 @@ parse_single_statement :: proc(lexer: ^Lexer) -> ^Ast_Node {
             case .While:  return NODE(parse_while(lexer));
             case .For:    return NODE(parse_for(lexer));
             case .RCurly: return nil;
+            case .LCurly: {
+                return NODE(parse_body(lexer));
+            }
             case .Line_Comment: {
                 get_next_token(lexer);
                 continue statement_loop;
@@ -271,37 +274,18 @@ parse_struct :: proc(lexer: ^Lexer) -> ^Ast_Struct {
 }
 
 parse_if :: proc(lexer: ^Lexer) -> ^Ast_If {
-    parse_single_if :: proc(lexer: ^Lexer) -> ^Ast_If {
-        expect(lexer, .If);
-        expect(lexer, .LParen);
-        cond := parse_expr(lexer);
-        expect(lexer, .RParen);
-        body := parse_body(lexer);
-        if_statement := make_node(Ast_If);
-        if_statement.condition = cond;
-        if_statement.body = body;
-        return if_statement;
-    }
+    expect(lexer, .If);
+    expect(lexer, .LParen);
+    cond := parse_expr(lexer);
+    expect(lexer, .RParen);
+    body := parse_body(lexer);
+    if_statement := make_node(Ast_If);
+    if_statement.condition = cond;
+    if_statement.body = body;
 
-    if_statement := parse_single_if(lexer);
-
-    else_if_loop: for {
-        if _, ok := peek_kind(lexer, .Else); ok {
-            get_next_token(lexer);
-            if _, ok := peek_kind(lexer, .If); ok {
-                // else if
-                else_if := parse_single_if(lexer);
-                append(&if_statement.else_ifs, else_if);
-            }
-            else {
-                // else
-                if_statement.else_body = parse_body(lexer);
-                break else_if_loop;
-            }
-        }
-        else {
-            break else_if_loop;
-        }
+    if _, ok := peek_kind(lexer, .Else); ok {
+        get_next_token(lexer);
+        if_statement.else_stmt = parse_single_statement(lexer);
     }
 
     return if_statement;
@@ -433,18 +417,31 @@ parse_mul_expr :: proc(lexer: ^Lexer) -> ^Ast_Expr {
 parse_unary_expr :: proc(lexer: ^Lexer) -> ^Ast_Expr {
     expr: ^Ast_Expr;
     for is_unary_op(lexer) {
+        expr = make_node(Ast_Expr);
+
         op, _, ok := get_next_token(lexer);
         assert(ok);
 
-        rhs := parse_unary_expr(lexer);
-        expr = make_node(Ast_Expr);
-
         #partial
         switch op.kind {
-            case .Ampersand:  expr.kind = Expr_Address_Of{rhs};
-            case: expr.kind = Expr_Unary{token_operator(op.kind), rhs};
+            case .Cast: {
+                expect(lexer, .LParen);
+                typespec := parse_typespec(lexer);
+                expect(lexer, .RParen);
+                rhs := parse_unary_expr(lexer);
+                expr.kind = Expr_Cast{typespec, rhs};
+            }
+            case .Ampersand: {
+                rhs := parse_unary_expr(lexer);
+                expr.kind = Expr_Address_Of{rhs};
+            }
+            case: {
+                rhs := parse_unary_expr(lexer);
+                expr.kind = Expr_Unary{token_operator(op.kind), rhs};
+            }
         }
     }
+
     if expr != nil {
         return expr;
     }
@@ -527,7 +524,7 @@ parse_base_expr :: proc(lexer: ^Lexer) -> ^Ast_Expr {
             queue_identifier_for_resolving(ident);
         }
         case .Number: {
-            expr.kind = Expr_Number{strconv.parse_int(token.slice)};
+            expr.kind = Expr_Number{strings.contains(token.slice, "."), strconv.parse_int(token.slice), strconv.parse_f64(token.slice), strconv.parse_uint(token.slice)};
         }
         case .String: {
             str, length := unescape_string(token.slice);
@@ -593,7 +590,7 @@ is_and_op     :: proc(lexer: ^Lexer) -> bool { token, ok := peek(lexer); assert(
 is_cmp_op     :: proc(lexer: ^Lexer) -> bool { token, ok := peek(lexer); assert(ok); #partial switch token.kind { case .CMP_BEGIN...CMP_END:               return true; } return false; }
 is_add_op     :: proc(lexer: ^Lexer) -> bool { token, ok := peek(lexer); assert(ok); #partial switch token.kind { case .ADD_BEGIN...ADD_END:               return true; } return false; }
 is_mul_op     :: proc(lexer: ^Lexer) -> bool { token, ok := peek(lexer); assert(ok); #partial switch token.kind { case .MUL_BEGIN...MUL_END:               return true; } return false; }
-is_unary_op   :: proc(lexer: ^Lexer) -> bool { token, ok := peek(lexer); assert(ok); #partial switch token.kind { case .Minus, .Plus, .Ampersand:          return true; } return false; }
+is_unary_op   :: proc(lexer: ^Lexer) -> bool { token, ok := peek(lexer); assert(ok); #partial switch token.kind { case .Minus, .Plus, .Ampersand, .Cast:   return true; } return false; }
 is_postfix_op :: proc(lexer: ^Lexer) -> bool { token, ok := peek(lexer); assert(ok); #partial switch token.kind { case .LParen, .LSquare, .Period, .Caret: return true; } return false; }
 
 token_operator :: proc(t: Token_Kind, loc := #caller_location) -> Operator {
@@ -705,8 +702,7 @@ Ast_Struct :: struct {
 Ast_If :: struct {
     condition: ^Ast_Expr,
     body: ^Ast_Scope,
-    else_ifs: [dynamic]^Ast_If,
-    else_body: ^Ast_Scope,
+    else_stmt: ^Ast_Node,
 }
 
 Ast_While :: struct {
@@ -744,6 +740,7 @@ Ast_Expr :: struct {
         Expr_Subscript,
         Expr_Identifier,
         Expr_Call,
+        Expr_Cast,
         Expr_Null,
         Expr_True,
         Expr_False,
@@ -769,8 +766,10 @@ Expr_Dereference :: struct {
     lhs: ^Ast_Expr,
 }
 Expr_Number :: struct {
-    // todo(josh): handle floats, etc
+    has_a_dot: bool,
     int_value: int,
+    float_value: f64,
+    uint_value: uint,
 }
 Expr_String :: struct {
     str: string,
@@ -796,6 +795,10 @@ Expr_Identifier :: struct {
 Expr_Call :: struct {
     procedure_expr: ^Ast_Expr,
     params: []^Ast_Expr,
+}
+Expr_Cast :: struct {
+    typespec: ^Ast_Typespec,
+    rhs: ^Ast_Expr,
 }
 
 Addressing_Mode :: enum {

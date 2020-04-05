@@ -225,6 +225,7 @@ Token_Kind :: enum {
     Null,
     True,
     False,
+    Cast,
 
     Identifier,
     String,
@@ -285,6 +286,7 @@ keyword_mapping := [?]Keyword_Mapping {
     {"else",   .Else},
     {"while",  .While},
     {"for",    .For},
+    {"cast",   .Cast},
     {"var",    .Var},
     {"proc",   .Proc},
     {"return", .Return},

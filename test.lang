@@ -1,6 +1,10 @@
+proc malloc(var size: int) : rawptr #foreign;
+proc free(var ptr: rawptr) #foreign;
+
 proc assert(var cond: bool) #foreign;
 proc print_string(var str: string) #foreign;
 proc print_int(var i: int) #foreign;
+proc print_float(var i: float) #foreign;
 
 proc variables() {
     print_string("\n\n----- variables -----\n");
@@ -13,6 +17,12 @@ proc variables() {
     assert(x != y);
     y = 123;
     assert(x == y);
+
+    var some_int: int = 123;
+    var some_float: float = 321;
+    print_float(some_float);
+    some_float = cast(float)some_int;
+    print_float(some_float);
 }
 
 proc basic_stuff() {
@@ -41,7 +51,7 @@ proc basic_stuff() {
         print_int(x);
         x = x - 1;
     }
-    print_string("\n");
+    print_string("");
 
     print_string("for loop:");
     for (var i: int = 0; i < 6; i = i + 1;) { // todo(josh): make this not require a semicolon at the end
@@ -75,7 +85,10 @@ proc arrays() {
     a[b] = 123;
     print_int(a[b]);
 
-    var c: ^[8]int;
+    var c: ^[8]int = &a;
+    c^[4] = 149;
+    print_int(a[4]);
+
     var d: [8]^int;
     var e: ^[8]^int;
     var f: ^[8]^[16]int;
@@ -113,6 +126,12 @@ proc procedures() {
     print_int(result);
 }
 
+proc allocation() {
+    print_string("\n\n----- allocation -----\n");
+
+    var thing: rawptr = malloc(128);
+}
+
 proc main() {
     variables();
     basic_stuff();
@@ -120,6 +139,7 @@ proc main() {
     arrays();
     strings();
     procedures();
+    allocation();
 
     // assert(true == false);
 }
