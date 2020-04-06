@@ -179,6 +179,12 @@ typecheck_var :: proc(var: ^Ast_Var) {
     if typespec_type != nil do var.type = typespec_type;
     if expr_type     != nil do var.type = expr_type;
     assert(var.type != nil);
+
+    if var.is_const {
+        assert(var.expr != nil);
+        assert(var.expr.constant_value != nil);
+        var.constant_value = var.expr.constant_value;
+    }
 }
 
 typecheck_typespec :: proc(typespec: ^Ast_Typespec) {
@@ -208,7 +214,11 @@ typecheck_typespec :: proc(typespec: ^Ast_Typespec) {
         case Typespec_Array: {
             typecheck_typespec(kind.array_of);
             assert(kind.array_of.type != nil);
-            typespec.type = TYPE(get_or_make_type_array_of(kind.array_of.type, kind.length.kind.(Expr_Number).int_value));
+            typecheck_expr(kind.length, type_int);
+            assert(kind.length.type != nil);
+            assert(kind.length.constant_value != nil);
+            constant_size := kind.length.constant_value.(i64);
+            typespec.type = TYPE(get_or_make_type_array_of(kind.array_of.type, cast(int)constant_size)); // todo(josh): remove this cast!!!!
         }
         case: panic(tprint(typespec));
     }
@@ -308,29 +318,210 @@ typecheck_expr :: proc(expr: ^Ast_Expr, expected_type: ^Type) {
             assert(lhs_type == rhs_type);
 
             switch kind.op {
-                case .Multiply:      expr.type = lhs_type;
-                case .Divide:        expr.type = lhs_type;
-                case .Mod:           expr.type = lhs_type; // todo(josh): make sure left and right are both integers
-                case .Mod_Mod:       expr.type = lhs_type; // todo(josh): make sure left and right are both integers
-                case .Shift_Left:    expr.type = lhs_type; // todo(josh): make sure left and right are both integers
-                case .Shift_Right:   expr.type = lhs_type; // todo(josh): make sure left and right are both integers
+                case .Multiply: {
+                    expr.type = lhs_type;
+                    if kind.lhs.constant_value != nil && kind.rhs.constant_value != nil {
+                        switch val in kind.lhs.constant_value {
+                            case i64:    expr.constant_value = val * kind.rhs.constant_value.(i64);
+                            case f64:    expr.constant_value = val * kind.rhs.constant_value.(f64);
+                            case string: panic("wat");
+                            case bool:   panic("wat");
+                        }
+                    }
+                }
+                case .Divide: {
+                    expr.type = lhs_type;
+                    if kind.lhs.constant_value != nil && kind.rhs.constant_value != nil {
+                        switch val in kind.lhs.constant_value {
+                            case i64:    expr.constant_value = val / kind.rhs.constant_value.(i64);
+                            case f64:    expr.constant_value = val / kind.rhs.constant_value.(f64);
+                            case string: panic("wat");
+                            case bool:   panic("wat");
+                        }
+                    }
+                }
+                case .Mod: {
+                    expr.type = lhs_type; // todo(josh): make sure left and right are both integers
+                    if kind.lhs.constant_value != nil && kind.rhs.constant_value != nil {
+                        switch val in kind.lhs.constant_value {
+                            case i64:    expr.constant_value = val % kind.rhs.constant_value.(i64);
+                            case f64:    panic("wat");
+                            case string: panic("wat");
+                            case bool:   panic("wat");
+                        }
+                    }
+                }
+                case .Mod_Mod: {
+                    expr.type = lhs_type; // todo(josh): make sure left and right are both integers
+                    if kind.lhs.constant_value != nil && kind.rhs.constant_value != nil {
+                        switch val in kind.lhs.constant_value {
+                            case i64:    expr.constant_value = val %% kind.rhs.constant_value.(i64);
+                            case f64:    panic("wat");
+                            case string: panic("wat");
+                            case bool:   panic("wat");
+                        }
+                    }
+                }
+                case .Shift_Left: {
+                    expr.type = lhs_type; // todo(josh): make sure left and right are both integers
+                    if kind.lhs.constant_value != nil && kind.rhs.constant_value != nil {
+                        // todo(josh): constant values
+                    }
+                }
+                case .Shift_Right: {
+                    expr.type = lhs_type; // todo(josh): make sure left and right are both integers
+                    if kind.lhs.constant_value != nil && kind.rhs.constant_value != nil {
+                        // todo(josh): constant values
+                    }
+                }
 
-                case .Plus:          expr.type = lhs_type;
-                case .Minus:         expr.type = lhs_type;
-                case .Bit_Xor:       expr.type = lhs_type; // todo(josh): make sure left and right are both integers
-                case .Bit_And:       expr.type = lhs_type; // todo(josh): make sure left and right are both integers
-                case .Bit_Or:        expr.type = lhs_type; // todo(josh): make sure left and right are both integers
-                case .Bit_Not:       expr.type = lhs_type; // todo(josh): make sure left and right are both integers
+                case .Plus: {
+                    expr.type = lhs_type;
+                    if kind.lhs.constant_value != nil && kind.rhs.constant_value != nil {
+                        switch val in kind.lhs.constant_value {
+                            case i64:    expr.constant_value = val + kind.rhs.constant_value.(i64);
+                            case f64:    expr.constant_value = val + kind.rhs.constant_value.(f64);
+                            case string: panic("wat");
+                            case bool:   panic("wat");
+                        }
+                    }
+                }
+                case .Minus: {
+                    expr.type = lhs_type;
+                    if kind.lhs.constant_value != nil && kind.rhs.constant_value != nil {
+                        switch val in kind.lhs.constant_value {
+                            case i64:    expr.constant_value = val - kind.rhs.constant_value.(i64);
+                            case f64:    expr.constant_value = val - kind.rhs.constant_value.(f64);
+                            case string: panic("wat");
+                            case bool:   panic("wat");
+                        }
+                    }
+                }
+                case .Bit_Xor: {
+                    expr.type = lhs_type; // todo(josh): make sure left and right are both integers
+                    if kind.lhs.constant_value != nil && kind.rhs.constant_value != nil {
+                        switch val in kind.lhs.constant_value {
+                            case i64:    expr.constant_value = val ~ kind.rhs.constant_value.(i64);
+                            case f64:    panic("wat");
+                            case string: panic("wat");
+                            case bool:   panic("wat");
+                        }
+                    }
+                }
+                case .Bit_And: {
+                    expr.type = lhs_type; // todo(josh): make sure left and right are both integers
+                    if kind.lhs.constant_value != nil && kind.rhs.constant_value != nil {
+                        switch val in kind.lhs.constant_value {
+                            case i64:    expr.constant_value = val & kind.rhs.constant_value.(i64);
+                            case f64:    panic("wat");
+                            case string: panic("wat");
+                            case bool:   panic("wat");
+                        }
+                    }
+                }
+                case .Bit_Or: {
+                    expr.type = lhs_type; // todo(josh): make sure left and right are both integers
+                    if kind.lhs.constant_value != nil && kind.rhs.constant_value != nil {
+                        switch val in kind.lhs.constant_value {
+                            case i64:    expr.constant_value = val | kind.rhs.constant_value.(i64);
+                            case f64:    panic("wat");
+                            case string: panic("wat");
+                            case bool:   panic("wat");
+                        }
+                    }
+                }
+                case .Equal_To: { // true == false
+                    expr.type = type_bool;
+                    if kind.lhs.constant_value != nil && kind.rhs.constant_value != nil {
+                        switch val in kind.lhs.constant_value {
+                            case i64:    expr.constant_value = val == kind.rhs.constant_value.(i64);
+                            case f64:    expr.constant_value = val == kind.rhs.constant_value.(f64);
+                            case string: expr.constant_value = val == kind.rhs.constant_value.(string);
+                            case bool:   expr.constant_value = val == kind.rhs.constant_value.(bool);
+                        }
+                    }
+                }
+                case .Not_Equal: {
+                    expr.type = type_bool;
+                    if kind.lhs.constant_value != nil && kind.rhs.constant_value != nil {
+                        switch val in kind.lhs.constant_value {
+                            case i64:    expr.constant_value = val != kind.rhs.constant_value.(i64);
+                            case f64:    expr.constant_value = val != kind.rhs.constant_value.(f64);
+                            case string: expr.constant_value = val != kind.rhs.constant_value.(string);
+                            case bool:   expr.constant_value = val != kind.rhs.constant_value.(bool);
+                        }
+                    }
+                }
+                case .Less: {
+                    expr.type = type_bool;
 
-                case .Equal_To:      expr.type = type_bool;
-                case .Not_Equal:     expr.type = type_bool;
-                case .Less:          expr.type = type_bool;
-                case .Greater:       expr.type = type_bool;
-                case .Less_Equal:    expr.type = type_bool;
-                case .Greater_Equal: expr.type = type_bool;
-                case .And:           expr.type = type_bool;
-                case .Or:            expr.type = type_bool;
+                    if kind.lhs.constant_value != nil && kind.rhs.constant_value != nil {
+                        switch val in kind.lhs.constant_value {
+                            case i64:    expr.constant_value = val < kind.rhs.constant_value.(i64);
+                            case f64:    expr.constant_value = val < kind.rhs.constant_value.(f64);
+                            case string: panic("wat");
+                            case bool:   panic("wat");
+                        }
+                    }
+                }
+                case .Greater: {
+                    expr.type = type_bool;
+                    if kind.lhs.constant_value != nil && kind.rhs.constant_value != nil {
+                        switch val in kind.lhs.constant_value {
+                            case i64:    expr.constant_value = val > kind.rhs.constant_value.(i64);
+                            case f64:    expr.constant_value = val > kind.rhs.constant_value.(f64);
+                            case string: panic("wat");
+                            case bool:   panic("wat");
+                        }
+                    }
+                }
+                case .Less_Equal: {
+                    expr.type = type_bool;
+                    if kind.lhs.constant_value != nil && kind.rhs.constant_value != nil {
+                        switch val in kind.lhs.constant_value {
+                            case i64:    expr.constant_value = val <= kind.rhs.constant_value.(i64);
+                            case f64:    expr.constant_value = val <= kind.rhs.constant_value.(f64);
+                            case string: panic("wat");
+                            case bool:   panic("wat");
+                        }
+                    }
+                }
+                case .Greater_Equal: {
+                    expr.type = type_bool;
+                    if kind.lhs.constant_value != nil && kind.rhs.constant_value != nil {
+                        switch val in kind.lhs.constant_value {
+                            case i64:    expr.constant_value = val >= kind.rhs.constant_value.(i64);
+                            case f64:    expr.constant_value = val >= kind.rhs.constant_value.(f64);
+                            case string: panic("wat");
+                            case bool:   panic("wat");
+                        }
+                    }
+                }
+                case .And: {
+                    expr.type = type_bool;
+                    if kind.lhs.constant_value != nil && kind.rhs.constant_value != nil {
+                        switch val in kind.lhs.constant_value {
+                            case i64:    panic("wat");
+                            case f64:    panic("wat");
+                            case string: panic("wat");
+                            case bool:   expr.constant_value = val && kind.rhs.constant_value.(bool);
+                        }
+                    }
+                }
+                case .Or: {
+                    expr.type = type_bool;
+                    if kind.lhs.constant_value != nil && kind.rhs.constant_value != nil {
+                        switch val in kind.lhs.constant_value {
+                            case i64:    panic("wat");
+                            case f64:    panic("wat");
+                            case string: panic("wat");
+                            case bool:   expr.constant_value = val || kind.rhs.constant_value.(bool);
+                        }
+                    }
+                }
                 case .Not: panic("no unary ops here");
+                case .Bit_Not: panic("no unary here");
+
                 case: unimplemented(fmt.tprint(kind.op));
             }
 
@@ -354,6 +545,8 @@ typecheck_expr :: proc(expr: ^Ast_Expr, expected_type: ^Type) {
             expr.mode = .LValue;
         }
         case Expr_Cast: {
+            // todo(josh): constant values
+
             typecheck_typespec(kind.typespec);
             assert(kind.typespec.type != nil);
             typecheck_expr(kind.rhs, nil); // todo(josh): should we pass an expected type here?
@@ -375,9 +568,38 @@ typecheck_expr :: proc(expr: ^Ast_Expr, expected_type: ^Type) {
             assert(rhs_type != nil);
             #partial
             switch kind.op {
-                case .Not:       assert(rhs_type == type_bool); expr.type = type_bool;
-                case .Minus:     expr.type = rhs_type;
-                case .Plus:      expr.type = rhs_type;
+                case .Not: { // !
+                    assert(rhs_type == type_bool);
+                    expr.type = type_bool;
+                    if kind.rhs.constant_value != nil {
+                        expr.constant_value = !kind.rhs.constant_value.(bool);
+                    }
+                }
+                case .Minus: {
+                    expr.type = rhs_type;
+                    if kind.rhs.constant_value != nil {
+                        #partial
+                        switch val in kind.rhs.constant_value {
+                            case i64: expr.constant_value = -val;
+                            case f64: expr.constant_value = -val;
+                        }
+                    }
+                }
+                case .Plus: {
+                    expr.type = rhs_type;
+                    expr.constant_value = kind.rhs.constant_value;
+                }
+                case .Bit_Not: {
+                    expr.type = rhs_type;
+                    if kind.rhs.constant_value != nil {
+                        switch val in kind.rhs.constant_value {
+                            case i64:    expr.constant_value = ~val;
+                            case f64:    panic("wat");
+                            case string: panic("wat");
+                            case bool:   panic("wat");
+                        }
+                    }
+                }
                 case: unimplemented(fmt.tprint(kind.op));
             }
             expr.mode = .RValue;
@@ -386,13 +608,20 @@ typecheck_expr :: proc(expr: ^Ast_Expr, expected_type: ^Type) {
             if expected_type != nil {
                 assert(is_numeric_type(expected_type));
                 expr.type = expected_type;
+                switch {
+                    case is_float_type  (expected_type): expr.constant_value = kind.float_value;
+                    case is_integer_type(expected_type): expr.constant_value = cast(i64)kind.int_value;
+                    case: panic("wat");
+                }
             }
             else {
                 if kind.has_a_dot {
                     expr.type = type_float;
+                    expr.constant_value = kind.float_value;
                 }
                 else {
                     expr.type = type_int;
+                    expr.constant_value = cast(i64)kind.int_value;
                 }
             }
             expr.mode = .RValue;
@@ -415,6 +644,8 @@ typecheck_expr :: proc(expr: ^Ast_Expr, expected_type: ^Type) {
             expr.mode = .LValue;
         }
         case Expr_Subscript: {
+            // todo(josh): constant values
+
             typecheck_expr(kind.lhs, nil); // todo(josh): should we pass an expected type here?
             typecheck_expr(kind.index, type_int); // todo(josh): should we pass an expected type here?
             assert(kind.lhs.type != nil);
@@ -430,6 +661,7 @@ typecheck_expr :: proc(expr: ^Ast_Expr, expected_type: ^Type) {
         case Expr_String: {
             expr.type = type_string;
             expr.mode = .RValue;
+            expr.constant_value = kind.str;
         }
         case Expr_Call: {
             typecheck_expr(kind.procedure_expr, nil); // todo(josh): should we pass an expected type here?
@@ -459,18 +691,28 @@ typecheck_expr :: proc(expr: ^Ast_Expr, expected_type: ^Type) {
             assert(kind.ident.type != nil);
             expr.type = kind.ident.type;
             expr.mode = .LValue;
+            #partial
+            switch decl in kind.ident.resolved_declaration.kind {
+                case Decl_Var: {
+                    if decl.var.is_const {
+                        assert(decl.var.constant_value != nil);
+                        expr.constant_value = decl.var.constant_value;
+                    }
+                }
+            }
         }
         case Expr_Null: {
             unimplemented();
             expr.mode = .RValue;
         }
-        case Expr_True:  expr.type = type_bool; expr.mode = .RValue;
-        case Expr_False: expr.type = type_bool; expr.mode = .RValue;
+        case Expr_True:  expr.type = type_bool; expr.mode = .RValue; expr.constant_value = true;
+        case Expr_False: expr.type = type_bool; expr.mode = .RValue; expr.constant_value = false;
         case Expr_Paren: {
             typecheck_expr(kind.expr, expected_type);
             assert(kind.expr != nil);
             expr.type = kind.expr.type;
             expr.mode = kind.expr.mode;
+            expr.constant_value = kind.expr.constant_value;
         }
         case: panic(tprint(expr));
     }

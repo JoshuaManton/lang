@@ -59,7 +59,7 @@ void print_float(float f) {
 
 
 void variables() {
-    print_string((String){"\n\n----- variables -----\n", 24});
+    print_string((String){"\n----- variables -----", 22});
     int x = 123;
     int y = 321;
     print_int(x);
@@ -68,14 +68,15 @@ void variables() {
     y = 123;
     assert(x == y);
     int some_int = 123;
-    float some_float = 321;
+    float some_float = 321.000;
     print_float(some_float);
     some_float = (float )some_int;
     print_float(some_float);
+        assert(true);
 }
 
 void basic_stuff() {
-    print_string((String){"\n\n----- basic stuff -----\n", 26});
+    print_string((String){"\n----- basic stuff -----", 24});
     int foo = 5;
     if (foo > 2) {
         print_string((String){"foo is greater than 2", 21});
@@ -110,7 +111,7 @@ void basic_stuff() {
 }
 
 void pointers() {
-    print_string((String){"\n\n----- pointers -----\n", 23});
+    print_string((String){"\n----- pointers -----", 21});
     int x = 11111;
     print_int(x);
     int *ptr = &x;
@@ -125,7 +126,7 @@ void pointers() {
 }
 
 void arrays() {
-    print_string((String){"\n\n----- arrays -----\n", 21});
+    print_string((String){"\n----- arrays -----", 19});
     int a[8] = {0};
     int b = 2;
     a[b] = 123;
@@ -137,11 +138,11 @@ void arrays() {
     int *((*e)[8]) = {0};
     int (*((*f)[8]))[16] = {0};
     int *(*(*x)) = {0};
-    int ((y[1])[2])[3] = {0};
+        int ((y[6])[12])[3] = {0};
 }
 
 void strings() {
-    print_string((String){"\n\n----- strings -----\n", 22});
+    print_string((String){"\n----- strings -----", 20});
     String str1 = (String){"Henlo, Sailor!", 14};
     String str2 = (String){"Henlo, Sailor!", 14};
     assert(string_eq(str1, str2));
@@ -155,19 +156,19 @@ void strings() {
 int foozle() {
     int a = 2;
     int b = 3;
-    int __temp_466 = a + b;
-    return __temp_466;
+    int __temp_495 = a + b;
+    return __temp_495;
 }
 
 void procedures() {
-    print_string((String){"\n\n----- procedures -----\n", 25});
+    print_string((String){"\n----- procedures -----", 23});
     int result = foozle();
     assert(result == 5);
     print_int(result);
 }
 
 void defer_statements() {
-    print_string((String){"\n\n----- defer -----\n", 20});
+    print_string((String){"\n----- defer -----", 18});
     int x = 111;
     assert(x == 111);
     {
@@ -222,18 +223,18 @@ typedef struct {
 } Vector3;
 
 void structs() {
-    print_string((String){"\n\n----- structs -----\n", 22});
+    print_string((String){"\n----- structs -----", 20});
     Vector3 v = {0};
-    v.x = 1;
-    v.y = 4;
-    v.z = 9;
+    v.x = 1.000;
+    v.y = 4.000;
+    v.z = 9.000;
     print_float(v.x);
     print_float(v.y);
     print_float(v.z);
 }
 
 void allocation() {
-    print_string((String){"\n\n----- allocation -----\n", 25});
+    print_string((String){"\n----- allocation -----", 23});
     void *thing = malloc(128);
 }
 

@@ -1,3 +1,5 @@
+// todo(josh): test all constant value operators
+
 proc malloc(size: int) : rawptr #foreign;
 proc free(ptr: rawptr) #foreign;
 
@@ -7,7 +9,7 @@ proc print_int(i: int) #foreign;
 proc print_float(i: float) #foreign;
 
 proc variables() {
-    print_string("\n\n----- variables -----\n");
+    print_string("\n----- variables -----");
 
     var x: int = 123;
     var y: int = 321;
@@ -23,10 +25,13 @@ proc variables() {
     print_float(some_float);
     some_float = cast(float)some_int;
     print_float(some_float);
+
+    const some_constant: int = 567;
+    assert(some_constant == 567);
 }
 
 proc basic_stuff() {
-    print_string("\n\n----- basic stuff -----\n");
+    print_string("\n----- basic stuff -----");
 
     var foo: int = 5;
     if (foo > 2) {
@@ -60,7 +65,7 @@ proc basic_stuff() {
 }
 
 proc pointers() {
-    print_string("\n\n----- pointers -----\n");
+    print_string("\n----- pointers -----");
 
     var x: int = 11111;
     print_int(x);
@@ -78,7 +83,7 @@ proc pointers() {
 }
 
 proc arrays() {
-    print_string("\n\n----- arrays -----\n");
+    print_string("\n----- arrays -----");
 
     var a: [8]int;
     var b: int = 2;
@@ -94,11 +99,13 @@ proc arrays() {
     var f: ^[8]^[16]int;
 
     var x: ^^^int;
-    var y: [1][2][3]int;
+
+    const N: int = 2 + 2 * 7 / 3;
+    var y: [N][N*2][N/2]int;
 }
 
 proc strings() {
-    print_string("\n\n----- strings -----\n");
+    print_string("\n----- strings -----");
 
     var str1: string = "Henlo, Sailor!";
     var str2: string = "Henlo, Sailor!";
@@ -120,7 +127,7 @@ proc foozle() : int {
 }
 
 proc procedures() {
-    print_string("\n\n----- procedures -----\n");
+    print_string("\n----- procedures -----");
 
     var result: int = foozle();
     assert(result == 5);
@@ -128,7 +135,7 @@ proc procedures() {
 }
 
 proc defer_statements() {
-    print_string("\n\n----- defer -----\n");
+    print_string("\n----- defer -----");
 
     //
     var x: int = 111;
@@ -185,7 +192,7 @@ struct Vector3 {
 }
 
 proc structs() {
-    print_string("\n\n----- structs -----\n");
+    print_string("\n----- structs -----");
 
     var v: Vector3;
     v.x = 1;
@@ -197,7 +204,7 @@ proc structs() {
 }
 
 proc allocation() {
-    print_string("\n\n----- allocation -----\n");
+    print_string("\n----- allocation -----");
 
     var thing: rawptr = malloc(128);
 }

@@ -56,6 +56,8 @@ parse_single_statement :: proc(lexer: ^Lexer) -> ^Ast_Node {
         #partial
         switch token.kind {
             case .Var:    return NODE(parse_var(lexer, true));
+            case .Const:  return NODE(parse_var(lexer, true));
+
             case .Proc:   return NODE(parse_proc(lexer));
             case .Struct: return NODE(parse_struct(lexer));
             case .Return: return NODE(parse_return(lexer));
@@ -119,9 +121,15 @@ parse_single_statement :: proc(lexer: ^Lexer) -> ^Ast_Node {
 }
 
 parse_var :: proc(lexer: ^Lexer, require_semicolon: bool) -> ^Ast_Var {
+    is_const := false;
     if _, ok := peek_kind(lexer, .Var); ok {
         get_next_token(lexer);
     }
+    else if _, ok := peek_kind(lexer, .Const); ok {
+        get_next_token(lexer);
+        is_const = true;
+    }
+
     name_token := expect(lexer, .Identifier);
     expect(lexer, .Colon);
 
@@ -145,6 +153,7 @@ parse_var :: proc(lexer: ^Lexer, require_semicolon: bool) -> ^Ast_Var {
     var.name = name_token.slice;
     var.typespec = typespec;
     var.expr = expr;
+    var.is_const = is_const;
 
     if current_procedure != nil {
         append(&current_procedure.variables, var);
@@ -725,6 +734,8 @@ Ast_Var :: struct {
     typespec: ^Ast_Typespec,
     expr: ^Ast_Expr,
     type: ^Type,
+    is_const: bool,
+    constant_value: Constant_Value,
 }
 
 Ast_Proc :: struct {
@@ -807,6 +818,7 @@ Ast_Expr :: struct {
     },
     type: ^Type,
     mode: Addressing_Mode,
+    constant_value: Constant_Value,
 }
 Expr_Binary :: struct {
     op: Operator,
@@ -892,6 +904,10 @@ Ast_Identifier :: struct {
     name: string,
     resolved_declaration: ^Declaration,
     type: ^Type,
+}
+
+Constant_Value :: union {
+    i64, f64, string, bool,
 }
 
 Declaration :: struct {

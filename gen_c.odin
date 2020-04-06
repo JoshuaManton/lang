@@ -156,6 +156,10 @@ c_print_node :: proc(sb: ^strings.Builder, node: ^Ast_Node, semicolon_and_newlin
 }
 
 c_print_var :: proc(sb: ^strings.Builder, var: ^Ast_Var, semicolon_and_newline: bool, zero_initialize: bool) {
+    if var.is_const {
+        return;
+    }
+
     sbprint(sb, c_print_typespec(var.typespec, var.name));
     if var.expr != nil {
         sbprint(sb, " = ");
@@ -257,6 +261,15 @@ c_print_for :: proc(sb: ^strings.Builder, for_loop: ^Ast_For) {
 }
 
 c_print_expr :: proc(sb: ^strings.Builder, expr: ^Ast_Expr) {
+    if expr.constant_value != nil {
+        switch kind in expr.constant_value {
+            case i64:    sbprint(sb, kind); return;
+            case f64:    sbprint(sb, kind); return;
+            case bool:   sbprint(sb, kind); return;
+            case string: // we still need our special string stuff
+        }
+    }
+
     switch kind in expr.kind {
         case Expr_Binary: {
             if kind.lhs.type == type_string {

@@ -218,6 +218,7 @@ Token_Kind :: enum {
     Defer,
 
     Var,
+    Const,
     Proc,
     Return,
     Continue,
@@ -292,6 +293,7 @@ keyword_mapping := [?]Keyword_Mapping {
     {"defer",    .Defer},
     {"cast",     .Cast},
     {"var",      .Var},
+    {"const",    .Const},
     {"proc",     .Proc},
     {"return",   .Return},
     {"continue", .Continue},
