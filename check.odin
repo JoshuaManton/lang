@@ -20,6 +20,8 @@ type_int: ^Type;
 type_uint: ^Type;
 type_float: ^Type;
 
+type_type: ^Type;
+
 type_bool: ^Type;
 type_string: ^Type;
 
@@ -53,7 +55,7 @@ init_types :: proc() {
 
     // "special" types
     type_bool = TYPE(make_type(Type_Primitive{}, 1)); register_declaration(global_scope, "bool", Decl_Type{type_bool});
-
+    type_type = TYPE(make_type(Type_Primitive{}, 0)); register_declaration(global_scope, "type", Decl_Type{type_type});
     type_string = TYPE(make_type_struct([]Field{{"data", TYPE(get_or_make_type_ptr_to(type_byte))}, {"length", type_int}})); register_declaration(global_scope, "string", Decl_Type{type_string});
     type_rawptr = TYPE(make_type(Type_Ptr{nil}, 8)); register_declaration(global_scope, "rawptr", Decl_Type{type_rawptr});
 }
@@ -74,6 +76,8 @@ make_type :: proc(kind: $T, size: int) -> ^T {
 }
 
 make_type_struct :: proc(fields: []Field) -> ^Type_Struct {
+    // todo(josh): account for padding/alignment
+
     size := 0;
     for field in fields do size += field.type.size;
     assert(size != 0);
@@ -292,7 +296,6 @@ typecheck_for :: proc(for_loop: ^Ast_For) {
 }
 
 typecheck_assign :: proc(assign: ^Ast_Assign) {
-    assert(assign.op == .Assign); // todo(josh): handle +=, -=, <<=, etc
     typecheck_expr(assign.lhs, nil); assert(assign.lhs.type != nil);
     typecheck_expr(assign.rhs, assign.lhs.type); assert(assign.rhs.type != nil);
     assert(assign.lhs.type == assign.rhs.type);

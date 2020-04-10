@@ -72,7 +72,17 @@ void variables() {
     print_float(some_float);
     some_float = (float )some_int;
     print_float(some_float);
-        assert(true);
+    assert(true);
+    print_string((String){"", 0});
+    print_int(some_int);
+    some_int += 2;
+    print_int(some_int);
+    some_int -= 2;
+    print_int(some_int);
+    some_int *= 2;
+    print_int(some_int);
+    some_int /= 2;
+    print_int(some_int);
 }
 
 void basic_stuff() {
@@ -104,7 +114,7 @@ void basic_stuff() {
 
     print_string((String){"", 0});
     print_string((String){"for loop:", 9});
-    for (int i = 0; i < 6; i = i + 1) {
+    for (int i = 0; i < 6; i += 1) {
         print_int(i);
     }
 
@@ -138,7 +148,7 @@ void arrays() {
     int *((*e)[8]) = {0};
     int (*((*f)[8]))[16] = {0};
     int *(*(*x)) = {0};
-        int ((y[6])[12])[3] = {0};
+    int ((y[6])[12])[3] = {0};
 }
 
 void strings() {
@@ -156,8 +166,8 @@ void strings() {
 int foozle() {
     int a = 2;
     int b = 3;
-    int __temp_495 = a + b;
-    return __temp_495;
+    int __temp_543 = a + b;
+    return __temp_543;
 }
 
 void procedures() {
@@ -175,10 +185,10 @@ void defer_statements() {
         x = 123;
     }
     assert(x == 123);
-    for (int i = 0; i < 4; i = i + 1) {
+    for (int i = 0; i < 4; i += 1) {
         int other = 123;
         while (other < 128) {
-            other = other + 1;
+            other += 1;
             if (other < 125) {
                 print_string((String){"Cool.", 5});
                 continue;

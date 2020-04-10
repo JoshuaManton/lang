@@ -28,6 +28,25 @@ proc variables() {
 
     const some_constant: int = 567;
     assert(some_constant == 567);
+
+    // var x = int + f32;
+
+    // const My_Int: type = int;
+    // var foo: int = 4;
+    // var bar: My_Int = 2;
+    // bar = foo;
+    // assert(bar == 4);
+
+    print_string("");
+    print_int(some_int);
+    some_int += 2;
+    print_int(some_int);
+    some_int -= 2;
+    print_int(some_int);
+    some_int *= 2;
+    print_int(some_int);
+    some_int /= 2;
+    print_int(some_int);
 }
 
 proc basic_stuff() {
@@ -59,7 +78,7 @@ proc basic_stuff() {
     print_string("");
 
     print_string("for loop:");
-    for (var i: int = 0; i < 6; i = i + 1;) { // todo(josh): make this not require a semicolon at the end
+    for (var i: int = 0; i < 6; i += 1;) { // todo(josh): make this not require a semicolon at the end
         print_int(i);
     }
 }
@@ -152,12 +171,12 @@ proc defer_statements() {
     defer print_string("This defer should run!");
 
     //
-    for (var i: int = 0; i < 4; i = i + 1;) {
+    for (var i: int = 0; i < 4; i += 1;) {
         defer print_int(i);
         var other: int = 123;
         while (other < 128) {
             defer print_string("Cool.");
-            other = other + 1;
+            other += 1;
             if (other < 125) {
                 continue;
             }

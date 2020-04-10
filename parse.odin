@@ -93,9 +93,9 @@ parse_single_statement :: proc(lexer: ^Lexer) -> ^Ast_Node {
                 assert(ok);
                 #partial
                 switch token.kind {
-                    case .Assign: {
+                    case .Assign, .Plus_Assign, .Minus_Assign, .Multiply_Assign, .Divide_Assign: {
                         lhs := root_expr;
-                        get_next_token(lexer); // todo(josh): handle +=, -=, etc
+                        get_next_token(lexer);
                         rhs := parse_expr(lexer);
                         assign := make_node(Ast_Assign);
                         assign^ = Ast_Assign{token.kind, lhs, rhs};
@@ -397,7 +397,7 @@ parse_or_expr :: proc(lexer: ^Lexer) -> ^Ast_Expr {
         lhs := expr;
         rhs := parse_and_expr(lexer);
         expr = make_node(Ast_Expr);
-        expr.kind = Expr_Binary{token_operator(op.kind), lhs, rhs};
+        expr.kind = Expr_Binary{binary_operator(op.kind), lhs, rhs};
     }
     return expr;
 }
@@ -413,7 +413,7 @@ parse_and_expr :: proc(lexer: ^Lexer) -> ^Ast_Expr {
         lhs := expr;
         rhs := parse_cmp_expr(lexer);
         expr = make_node(Ast_Expr);
-        expr.kind = Expr_Binary{token_operator(op.kind), lhs, rhs};
+        expr.kind = Expr_Binary{binary_operator(op.kind), lhs, rhs};
     }
     return expr;
 }
@@ -428,7 +428,7 @@ parse_cmp_expr :: proc(lexer: ^Lexer) -> ^Ast_Expr {
         lhs := expr;
         rhs := parse_add_expr(lexer);
         expr = make_node(Ast_Expr);
-        expr.kind = Expr_Binary{token_operator(op.kind), lhs, rhs};
+        expr.kind = Expr_Binary{binary_operator(op.kind), lhs, rhs};
     }
     return expr;
 }
@@ -443,7 +443,7 @@ parse_add_expr :: proc(lexer: ^Lexer) -> ^Ast_Expr {
         lhs := expr;
         rhs := parse_mul_expr(lexer);
         expr = make_node(Ast_Expr);
-        expr.kind = Expr_Binary{token_operator(op.kind), lhs, rhs};
+        expr.kind = Expr_Binary{binary_operator(op.kind), lhs, rhs};
     }
     return expr;
 }
@@ -458,7 +458,7 @@ parse_mul_expr :: proc(lexer: ^Lexer) -> ^Ast_Expr {
         lhs := expr;
         rhs := parse_unary_expr(lexer);
         expr = make_node(Ast_Expr);
-        expr.kind = Expr_Binary{token_operator(op.kind), lhs, rhs};
+        expr.kind = Expr_Binary{binary_operator(op.kind), lhs, rhs};
     }
     return expr;
 }
@@ -486,7 +486,7 @@ parse_unary_expr :: proc(lexer: ^Lexer) -> ^Ast_Expr {
             }
             case: {
                 rhs := parse_unary_expr(lexer);
-                expr.kind = Expr_Unary{token_operator(op.kind), rhs};
+                expr.kind = Expr_Unary{unary_operator(op.kind), rhs};
             }
         }
     }
@@ -642,7 +642,7 @@ is_mul_op     :: proc(lexer: ^Lexer) -> bool { token, ok := peek(lexer); assert(
 is_unary_op   :: proc(lexer: ^Lexer) -> bool { token, ok := peek(lexer); assert(ok); #partial switch token.kind { case .Minus, .Plus, .Ampersand, .Cast:   return true; } return false; }
 is_postfix_op :: proc(lexer: ^Lexer) -> bool { token, ok := peek(lexer); assert(ok); #partial switch token.kind { case .LParen, .LSquare, .Period, .Caret: return true; } return false; }
 
-token_operator :: proc(t: Token_Kind, loc := #caller_location) -> Operator {
+binary_operator :: proc(t: Token_Kind, loc := #caller_location) -> Operator {
     #partial
     switch t {
         case .Multiply:      return .Multiply;
@@ -651,9 +651,8 @@ token_operator :: proc(t: Token_Kind, loc := #caller_location) -> Operator {
         case .Mod_Mod:       return .Mod_Mod;
         case .Shift_Left:    return .Shift_Left;
         case .Shift_Right:   return .Shift_Right;
-        case .Bit_Or:        return .Bit_Or;
-        case .Caret:         return .Bit_Xor;
-        case .Bit_Not:       return .Bit_Not;
+        case .Tilde:         return .Bit_Xor;
+        case .Bar:           return .Bit_Or;
         case .Equal_To:      return .Equal_To;
         case .Not_Equal:     return .Not_Equal;
         case .Less:          return .Less;
@@ -665,7 +664,19 @@ token_operator :: proc(t: Token_Kind, loc := #caller_location) -> Operator {
         case .Or:            return .Or;
         case .Plus:          return .Plus;
         case .Minus:         return .Minus;
-        case: panic(tprint(t, " caller: ", loc));
+        case: panic(tprint("invalid binary operator: ", t, " caller: ", loc));
+    }
+    unreachable();
+    return {};
+}
+
+unary_operator :: proc(t: Token_Kind, loc := #caller_location) -> Operator {
+    #partial
+    switch t {
+        case .Tilde: return .Bit_Not;
+        case .Plus:  return .Plus;
+        case .Minus: return .Minus;
+        case: panic(tprint("invalid unary operator: ", t, " caller: ", loc));
     }
     unreachable();
     return {};

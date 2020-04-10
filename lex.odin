@@ -38,11 +38,11 @@ get_next_token :: proc(lexer: ^Lexer) -> (Token, int, bool) {
         case '.': token = {".", .Period};
         case '^': token = {"^", .Caret};
 
-        case '+': token = {"+", .Plus};
-        case '-': token = {"-", .Minus};
-        case '*': token = {"*", .Multiply};
+        case '+': token = tokens(lexer, {"+", .Plus},     {"+=", .Plus_Assign});
+        case '-': token = tokens(lexer, {"-", .Minus},    {"-=", .Minus_Assign});
+        case '*': token = tokens(lexer, {"*", .Multiply}, {"*=", .Multiply_Assign});
         case '/': {
-            token = tokens(lexer, {"/", .Divide}, {"//", .Line_Comment});
+            token = tokens(lexer, {"/", .Divide}, {"/=", .Divide_Assign}, {"//", .Line_Comment});
             if token.kind == .Line_Comment {
                 cur := 0;
                 for cur < len(lexer.text) && lexer.text[cur] != '\n' {
@@ -57,8 +57,8 @@ get_next_token :: proc(lexer: ^Lexer) -> (Token, int, bool) {
         case '<': token = tokens(lexer, {"<", .Less},      {"<=", .Less_Equal},    {"<<", .Shift_Left});
         case '>': token = tokens(lexer, {">", .Greater},   {">=", .Greater_Equal}, {">>", .Shift_Right});
         case '&': token = tokens(lexer, {"&", .Ampersand}, {"&&", .And});
-        case '|': token = tokens(lexer, {"|", .Bit_Or},    {"||", .Or});
-        case '~': token = {"~", .Bit_Not};
+        case '|': token = tokens(lexer, {"|", .Bar},       {"||", .Or});
+        case '~': token = {"~", .Tilde};
 
         case '(': token = {"(", .LParen};
         case ')': token = {")", .RParen};
@@ -239,6 +239,10 @@ Token_Kind :: enum {
     Directive_Include,
 
     Assign,
+    Plus_Assign,
+    Minus_Assign,
+    Multiply_Assign,
+    Divide_Assign,
     Semicolon,
     Colon,
     Comma,
@@ -263,9 +267,9 @@ Token_Kind :: enum {
 
     Plus, ADD_BEGIN = Plus,
     Minus,
-    Bit_Not,
-    Caret, // ^ serves double-duty as binary bitwise XOR and unary postfix dereference
-    Bit_Or, ADD_END = Bit_Or,
+    Tilde, // ~ serves double-duty as binary bitwise XOR and unary bitwise NOT
+    Caret, // unary postfix dereference
+    Bar, ADD_END = Bar,
 
     Equal_To, CMP_BEGIN = Equal_To,
     Not_Equal,

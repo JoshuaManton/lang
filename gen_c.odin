@@ -99,6 +99,10 @@ c_print_scope :: proc(sb: ^strings.Builder, scope: ^Ast_Scope, do_curlies: bool)
             continue;
         }
 
+        if var, ok := node.kind.(Ast_Var); ok && var.is_const {
+            continue;
+        }
+
         if do_curlies do indent(sb);
         c_print_node(sb, node);
     }
@@ -260,6 +264,21 @@ c_print_for :: proc(sb: ^strings.Builder, for_loop: ^Ast_For) {
     sbprint(sb, "\n");
 }
 
+c_print_assign :: proc(sb: ^strings.Builder, assign: ^Ast_Assign, semicolon_and_newline: bool) {
+    c_print_expr(sb, assign.lhs);
+    #partial
+    switch assign.op {
+        case .Assign:          sbprint(sb, " = ");
+        case .Plus_Assign:     sbprint(sb, " += ");
+        case .Minus_Assign:    sbprint(sb, " -= ");
+        case .Multiply_Assign: sbprint(sb, " *= ");
+        case .Divide_Assign:   sbprint(sb, " /= ");
+        case: panic(tprint(assign.op));
+    }
+    c_print_expr(sb, assign.rhs);
+    if semicolon_and_newline do sbprint(sb, ";\n");
+}
+
 c_print_expr :: proc(sb: ^strings.Builder, expr: ^Ast_Expr) {
     if expr.constant_value != nil {
         switch kind in expr.constant_value {
@@ -403,16 +422,6 @@ c_print_typespec :: proc(typespec: ^Ast_Typespec, var_name: string) -> string {
     return {};
 }
 
-c_print_assign_op :: proc(sb: ^strings.Builder, assign_op: Token_Kind, with_spaces: bool) {
-    if with_spaces do sbprint(sb, " ");
-    #partial
-    switch assign_op {
-        case .Assign: sbprint(sb, "=");
-        case: panic(tprint(assign_op));
-    }
-    if with_spaces do sbprint(sb, " ");
-}
-
 c_print_op :: proc(sb: ^strings.Builder, op: Operator, with_spaces: bool) {
     if with_spaces do sbprint(sb, " ");
     switch op {
@@ -439,13 +448,6 @@ c_print_op :: proc(sb: ^strings.Builder, op: Operator, with_spaces: bool) {
         case .Or:            sbprint(sb, "||");
     }
     if with_spaces do sbprint(sb, " ");
-}
-
-c_print_assign :: proc(sb: ^strings.Builder, assign: ^Ast_Assign, semicolon_and_newline: bool) {
-    c_print_expr(sb, assign.lhs);
-    c_print_assign_op(sb, assign.op, true);
-    c_print_expr(sb, assign.rhs);
-    if semicolon_and_newline do sbprint(sb, ";\n");
 }
 
 sbprint :: fmt.sbprint;
