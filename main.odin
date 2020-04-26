@@ -6,6 +6,9 @@ import "core:strings"
 import "core:os"
 
 main :: proc() {
+    test_vm();
+    if true do return;
+
     if len(os.args) < 2 {
         fmt.println("Usage:\n  lang <filename>");
         return;
@@ -24,17 +27,17 @@ main :: proc() {
     resolve_identifiers();
     fmt.println("Checking types...");
     typecheck_node(NODE(global_scope));
-    when false {
-        fmt.println("Generating IR...");
-        ir := gen_ir();
-        fmt.println("Translating IR to VM...");
-        vm := gen_vm(ir);
-    }
-    else {
-        fmt.println("Generating C code...");
-        c_code := gen_c();
-        os.write_entire_file("output.c", transmute([]byte)c_code);
-    }
+    // when false {
+    //     fmt.println("Generating IR...");
+    //     ir := gen_ir();
+    //     fmt.println("Translating IR to VM...");
+    //     vm := gen_vm(ir);
+    // }
+    // else {
+    //     fmt.println("Generating C code...");
+    //     c_code := gen_c();
+    //     os.write_entire_file("output.c", transmute([]byte)c_code);
+    // }
 
     // fmt.println("Outputting AST...");
     // output_graphviz(NODE(file));
