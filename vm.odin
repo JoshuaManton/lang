@@ -13,6 +13,7 @@ VM :: struct {
     data_segment: []byte,
 
     label_mapping: map[string]u64,
+    label_mapping_from_ip: map[u64]string,
 }
 
 Register :: enum {
@@ -174,7 +175,6 @@ print_reg :: struct {
 // division requires signed instructions
 
 test_vm :: proc() {
-    fmt.println(size_of(Instruction));
     vm := make_vm();
 
     /*
@@ -267,10 +267,7 @@ test_vm :: proc() {
         // if (n != 1)
         add_instruction(vm, movi{.r2, 1});
         add_instruction(vm, eq{.r3, .r1, .r2});
-        add_instruction(vm, print_reg{.r1});
-        add_instruction(vm, print_reg{.r2});
-        add_instruction(vm, print_reg{.r3});
-        add_instruction(vm, gotoif{.r3, "after_if"});
+        add_instruction(vm, gotoif{.r3, "base_case"});
 
         // n-1
         add_instruction(vm, addi{.r2, .r1, -1});
@@ -294,7 +291,7 @@ test_vm :: proc() {
 
         ret(vm);
 
-        label(vm, "after_if");
+        label(vm, "base_case");
         add_instruction(vm, push{.r1});          // push it as return value
         ret(vm);
     }
@@ -327,11 +324,19 @@ add_instruction :: proc(vm: ^VM, instruction: Instruction) {
 }
 
 label :: proc(vm: ^VM, name: string) {
-    vm.label_mapping[strings.clone(name)] = cast(u64)len(vm.instructions);
+    name := strings.clone(name);
+    ip := cast(u64)len(vm.instructions);
+    vm.label_mapping[name] = ip;
+    vm.label_mapping_from_ip[ip] = name;
 }
 
 execute_vm :: proc(vm: ^VM) {
     for instruction, idx in vm.instructions {
+        if cast(u64)idx in vm.label_mapping_from_ip {
+            fmt.printf("%s:\n", vm.label_mapping_from_ip[cast(u64)idx]);
+        }
+        fmt.println("    ", vm.instructions[idx]);
+
         #partial
         switch kind in instruction {
             case goto:   ip, ok := vm.label_mapping[kind.label]; assert(ok, kind.label); vm.instructions[idx] = goto_ip{ip};
@@ -344,9 +349,7 @@ execute_vm :: proc(vm: ^VM) {
     instruction_loop:
     for vm.registers[.rip] < cast(u64)len(vm.instructions) {
         instruction := vm.instructions[vm.registers[.rip]];
-        fmt.println(fmt.tprint("#", vm.registers[.rip], ": ", instruction));
         switch kind in instruction {
-            //
             case load:  vm.registers[kind.dst] = (cast(^u64)&vm.memory[vm.registers[kind.p1]])^;
             case store: (cast(^u64)&vm.memory[vm.registers[kind.dst]])^ = vm.registers[kind.p1];
 
