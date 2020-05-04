@@ -29,8 +29,6 @@ proc variables() {
     const some_constant: int = 567;
     assert(some_constant == 567);
 
-    // var x = int + f32;
-
     // const My_Int: type = int;
     // var foo: int = 4;
     // var bar: My_Int = 2;

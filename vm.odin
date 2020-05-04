@@ -8,167 +8,204 @@ import "core:strings"
 
 VM :: struct {
     instructions: [dynamic]Instruction,
+    entry_point: u64,
     memory: []byte,
     registers: [Register]u64,
-    data_segment: []byte,
+    persistent_storage_watermark: int,
 
     label_mapping: map[string]u64,
     label_mapping_from_ip: map[u64]string,
 }
 
 Register :: enum {
-    rsp, rfp, rip, ra,
+    rsp, rfp, rip, ra, rt,
     rz,
     r1, r2, r3, r4,
     r5, r6, r7, r8
 }
 
 Instruction :: union {
-    push,
-    pop,
+    PUSH,
+    POP,
 
-    mov,
-    movi,
+    MOV,
+    MOVI,
 
-    add,
-    addi,
-    fadd,
-    faddi,
+    ADD,
+    ADDI,
+    FADD,
+    FADDI,
 
-    sub,
-    fsub,
+    SUB,
+    FSUB,
 
-    mul,
-    fmul,
+    MUL,
+    FMUL,
 
-    sdiv,
-    udiv,
-    fdiv,
+    SDIV,
+    UDIV,
+    FDIV,
 
-    eq,
-    lt,
-    lte,
+    EQ,
+    NEQ,
+    LT,
+    LTE,
 
-    goto,
-    goto_ip,
-    gotoif,
-    gotoif_ip,
-    jump,
-    jump_ip,
-    jumpif,
-    jumpif_ip,
+    GOTO,
+    GOTO_IP,
+    GOTOIF,
+    GOTOIF_IP,
+    GOTOIFZ,
+    GOTOIFZ_IP,
+    JUMP,
+    JUMP_IP,
+    JUMPIF,
+    JUMPIF_IP,
+    JUMPIFZ,
+    JUMPIFZ_IP,
 
-    load,
-    store,
+    LOAD8,
+    LOAD16,
+    LOAD32,
+    LOAD64,
+    STORE8,
+    STORE16,
+    STORE32,
+    STORE64,
 
-    exit,
+    EXIT,
 
-    print_reg,
+    PRINT_REG,
 }
 
-push :: struct {
+PUSH :: struct {
     p1: Register,
 }
-pop :: struct {
+POP :: struct {
     dst: Register,
 }
 
-mov :: struct {
+MOV :: struct {
     dst, src: Register,
 }
-movi :: struct {
+MOVI :: struct {
     dst: Register,
-    imm: int,
+    imm: i64,
 }
 
-add :: struct {
+ADD :: struct {
     dst, p1, p2: Register,
 }
-fadd :: struct {
+FADD :: struct {
     dst, p1, p2: Register,
 }
-addi :: struct {
+ADDI :: struct {
     dst, p1: Register,
-    imm: int,
+    imm: i64,
 }
-faddi :: struct {
+FADDI :: struct {
     dst, p1: Register,
     imm: f64,
 }
-sub :: struct {
+SUB :: struct {
     dst, p1, p2: Register,
 }
-fsub :: struct {
+FSUB :: struct {
     dst, p1, p2: Register,
 }
-mul :: struct {
+MUL :: struct {
     dst, p1, p2: Register,
 }
-fmul :: struct {
+FMUL :: struct {
     dst, p1, p2: Register,
 }
-sdiv :: struct {
+SDIV :: struct {
     dst, p1, p2: Register,
 }
-udiv :: struct {
+UDIV :: struct {
     dst, p1, p2: Register,
 }
-fdiv :: struct {
-    dst, p1, p2: Register,
-}
-
-eq :: struct {
-    dst, p1, p2: Register,
-}
-lt :: struct {
-    dst, p1, p2: Register,
-}
-lte :: struct {
+FDIV :: struct {
     dst, p1, p2: Register,
 }
 
-goto :: struct {
-    label: string,
+EQ :: struct {
+    dst, p1, p2: Register,
 }
-goto_ip :: struct {
-    ip: u64,
+NEQ :: struct {
+    dst, p1, p2: Register,
 }
-gotoif :: struct {
-    p1: Register,
-    label: string,
+LT :: struct {
+    dst, p1, p2: Register,
 }
-gotoif_ip :: struct {
-    p1: Register,
-    ip: u64,
+LTE :: struct {
+    dst, p1, p2: Register,
 }
 
-jump :: struct {
+GOTO :: struct {
     label: string,
 }
-jump_ip :: struct {
+GOTO_IP :: struct {
     ip: u64,
 }
-jumpif :: struct {
+GOTOIF :: struct {
     p1: Register,
     label: string,
 }
-jumpif_ip :: struct {
+GOTOIF_IP :: struct {
+    p1: Register,
+    ip: u64,
+}
+GOTOIFZ :: struct {
+    p1: Register,
+    label: string,
+}
+GOTOIFZ_IP :: struct {
     p1: Register,
     ip: u64,
 }
 
-load :: struct {
-    dst, p1: Register,
+JUMP :: struct {
+    label: string,
 }
-store :: struct {
-    dst, p1: Register,
+JUMP_IP :: struct {
+    ip: u64,
+}
+JUMPIF :: struct {
+    p1: Register,
+    label: string,
+}
+JUMPIF_IP :: struct {
+    p1: Register,
+    ip: u64,
+}
+JUMPIFZ :: struct {
+    p1: Register,
+    label: string,
+}
+JUMPIFZ_IP :: struct {
+    p1: Register,
+    ip: u64,
 }
 
-exit :: struct {
+Foo :: struct(T: typeid) {
+    arr: [32]T,
+}
+
+LOAD8   :: struct { dst, p1: Register, }
+LOAD16  :: struct { dst, p1: Register, }
+LOAD32  :: struct { dst, p1: Register, }
+LOAD64  :: struct { dst, p1: Register, }
+STORE8  :: struct { dst, p1: Register, }
+STORE16 :: struct { dst, p1: Register, }
+STORE32 :: struct { dst, p1: Register, }
+STORE64 :: struct { dst, p1: Register, }
+
+EXIT :: struct {
 
 }
 
-print_reg :: struct {
+PRINT_REG :: struct {
     p1: Register,
 }
 
@@ -178,51 +215,7 @@ test_vm :: proc() {
     vm := make_vm();
 
     /*
-    label(vm, "main");
-    {
-        function_header(vm);
-
-        // save our things
-        add_instruction(vm, push{.rfp});
-        add_instruction(vm, push{.ra});
-
-        // push a parameter
-        add_instruction(vm, movi{.r1, 6});
-        add_instruction(vm, push{.r1});
-
-        // call square
-        call(vm, "square");
-
-        // pop return value
-        add_instruction(vm, pop{.r1});
-
-        // pop saved registers
-        add_instruction(vm, pop{.ra});
-        add_instruction(vm, pop{.rfp});
-
-        add_instruction(vm, print_reg{.r1});
-
-        // exit
-        add_instruction(vm, exit{});
-    }
-
-    label(vm, "square");
-    {
-        function_header(vm);
-
-        add_instruction(vm, pop{.r5});           // pop param
-        add_instruction(vm, mul{.r5, .r5, .r5}); // square it
-        add_instruction(vm, print_reg{.r5});     // square it
-
-        add_instruction(vm, push{.r5});          // push it as return value
-
-        // return
-        ret(vm);
-    }
-    */
-
-    /*
-    int factoria(int n) {
+    int factorial(int n) {
         if (n != 1) {
             return n * factorial(n-1);
         }
@@ -230,92 +223,92 @@ test_vm :: proc() {
     }
     */
 
-    label(vm, "main");
     {
-        function_header(vm);
+        function_header(vm, "main");
 
         // save our things
-        add_instruction(vm, push{.rfp});
-        add_instruction(vm, push{.ra});
+        add_instruction(vm, PUSH{.rfp});
+        add_instruction(vm, PUSH{.ra});
 
         // push a parameter
-        add_instruction(vm, movi{.r1, 6});
-        add_instruction(vm, push{.r1});
+        add_instruction(vm, MOVI{.r1, 6});
+        add_instruction(vm, PUSH{.r1});
 
         // call square
         call(vm, "factorial");
 
         // pop return value
-        add_instruction(vm, pop{.r1});
+        add_instruction(vm, POP{.r1});
 
         // pop saved registers
-        add_instruction(vm, pop{.ra});
-        add_instruction(vm, pop{.rfp});
+        add_instruction(vm, POP{.ra});
+        add_instruction(vm, POP{.rfp});
 
-        add_instruction(vm, print_reg{.r1});
+        add_instruction(vm, PRINT_REG{.r1});
 
         // exit
-        add_instruction(vm, exit{});
+        add_instruction(vm, EXIT{});
     }
 
-    label(vm, "factorial");
     {
-        function_header(vm);
+        function_header(vm, "factorial");
 
-        add_instruction(vm, pop{.r1});           // pop param
+        add_instruction(vm, POP{.r1});           // pop param
 
         // if (n != 1)
-        add_instruction(vm, movi{.r2, 1});
-        add_instruction(vm, eq{.r3, .r1, .r2});
-        add_instruction(vm, gotoif{.r3, "base_case"});
+        add_instruction(vm, MOVI{.r2, 1});
+        add_instruction(vm, EQ{.r3, .r1, .r2});
+        add_instruction(vm, GOTOIF{.r3, "base_case"});
 
         // n-1
-        add_instruction(vm, addi{.r2, .r1, -1});
+        add_instruction(vm, ADDI{.r2, .r1, -1});
 
         // factorial()
-        add_instruction(vm, push{.r1});  // save our r1
-        add_instruction(vm, push{.rfp}); // save rfp and ra
-        add_instruction(vm, push{.ra});
+        add_instruction(vm, PUSH{.r1});  // save our r1
+        add_instruction(vm, PUSH{.rfp}); // save rfp and ra
+        add_instruction(vm, PUSH{.ra});
 
         // push param
-        add_instruction(vm, push{.r2});
+        add_instruction(vm, PUSH{.r2});
         call(vm, "factorial");
 
-        add_instruction(vm, pop{.r2});
-        add_instruction(vm, pop{.ra});
-        add_instruction(vm, pop{.rfp});
-        add_instruction(vm, pop{.r1});
+        add_instruction(vm, POP{.r2});
+        add_instruction(vm, POP{.ra});
+        add_instruction(vm, POP{.rfp});
+        add_instruction(vm, POP{.r1});
 
-        add_instruction(vm, mul{.r1, .r1, .r2});
-        add_instruction(vm, push{.r1});          // push it as return value
+        add_instruction(vm, MUL{.r1, .r1, .r2});
+        add_instruction(vm, PUSH{.r1});          // push it as return value
 
         ret(vm);
 
         label(vm, "base_case");
-        add_instruction(vm, push{.r1});          // push it as return value
+        add_instruction(vm, PUSH{.r1});          // push it as return value
         ret(vm);
     }
 
     execute_vm(vm);
 }
 
-function_header :: proc(vm: ^VM) {
-    add_instruction(vm, mov{.rfp, .rsp});
+function_header :: proc(vm: ^VM, name: string) {
+    label(vm, name);
+    add_instruction(vm, MOV{.rfp, .rsp});
 }
 
 call :: proc(vm: ^VM, label: string) {
-    add_instruction(vm, jump{label});
+    add_instruction(vm, JUMP{label});
 }
 
 ret :: proc(vm: ^VM) {
-    add_instruction(vm, mov{.rip, .ra});
+    add_instruction(vm, MOV{.rip, .ra});
 }
 
 make_vm :: proc() -> ^VM {
     vm := new(VM);
     vm.memory = make([]byte, mem.megabytes(10));
-    vm.data_segment = make([]byte, mem.megabytes(5));
-    vm.registers[.rsp] = transmute(u64)mem.megabytes(1);
+    top_of_stack := transmute(u64)mem.megabytes(1);
+    vm.registers[.rsp] = top_of_stack;
+    vm.persistent_storage_watermark = cast(int)top_of_stack;
     return vm;
 }
 
@@ -330,6 +323,14 @@ label :: proc(vm: ^VM, name: string) {
     vm.label_mapping_from_ip[ip] = name;
 }
 
+vm_allocate_static_storage :: proc(vm: ^VM, size: int) -> int {
+    // todo(josh): make sure that the stack never writes to the place it starts at
+    offset := vm.persistent_storage_watermark;
+    offset = align_forward_int(offset, size_of(rawptr)*2);
+    vm.persistent_storage_watermark += size;
+    return offset;
+}
+
 execute_vm :: proc(vm: ^VM) {
     for instruction, idx in vm.instructions {
         if cast(u64)idx in vm.label_mapping_from_ip {
@@ -339,58 +340,74 @@ execute_vm :: proc(vm: ^VM) {
 
         #partial
         switch kind in instruction {
-            case goto:   ip, ok := vm.label_mapping[kind.label]; assert(ok, kind.label); vm.instructions[idx] = goto_ip{ip};
-            case gotoif: ip, ok := vm.label_mapping[kind.label]; assert(ok, kind.label); vm.instructions[idx] = gotoif_ip{kind.p1, ip};
-            case jump:   ip, ok := vm.label_mapping[kind.label]; assert(ok, kind.label); vm.instructions[idx] = jump_ip{ip};
-            case jumpif: ip, ok := vm.label_mapping[kind.label]; assert(ok, kind.label); vm.instructions[idx] = jumpif_ip{kind.p1, ip};
+            case GOTO:    ip, ok := vm.label_mapping[kind.label]; assert(ok, kind.label); vm.instructions[idx] = GOTO_IP{ip};
+            case GOTOIF:  ip, ok := vm.label_mapping[kind.label]; assert(ok, kind.label); vm.instructions[idx] = GOTOIF_IP{kind.p1, ip};
+            case GOTOIFZ: ip, ok := vm.label_mapping[kind.label]; assert(ok, kind.label); vm.instructions[idx] = GOTOIFZ_IP{kind.p1, ip};
+            case JUMP:    ip, ok := vm.label_mapping[kind.label]; assert(ok, kind.label); vm.instructions[idx] = JUMP_IP{ip};
+            case JUMPIF:  ip, ok := vm.label_mapping[kind.label]; assert(ok, kind.label); vm.instructions[idx] = JUMPIF_IP{kind.p1, ip};
+            case JUMPIFZ: ip, ok := vm.label_mapping[kind.label]; assert(ok, kind.label); vm.instructions[idx] = JUMPIFZ_IP{kind.p1, ip};
         }
     }
 
+    fmt.println("-----------------------------------------");
+
+    vm.registers[.rip] = vm.entry_point;
     instruction_loop:
     for vm.registers[.rip] < cast(u64)len(vm.instructions) {
         instruction := vm.instructions[vm.registers[.rip]];
         switch kind in instruction {
-            case load:  vm.registers[kind.dst] = (cast(^u64)&vm.memory[vm.registers[kind.p1]])^;
-            case store: (cast(^u64)&vm.memory[vm.registers[kind.dst]])^ = vm.registers[kind.p1];
+            case LOAD8:  vm.registers[kind.dst] = cast(u64)(cast(^u8 )&vm.memory[vm.registers[kind.p1]])^;
+            case LOAD16: vm.registers[kind.dst] = cast(u64)(cast(^u16)&vm.memory[vm.registers[kind.p1]])^;
+            case LOAD32: vm.registers[kind.dst] = cast(u64)(cast(^u32)&vm.memory[vm.registers[kind.p1]])^;
+            case LOAD64: vm.registers[kind.dst] = cast(u64)(cast(^u64)&vm.memory[vm.registers[kind.p1]])^;
+            case STORE8:  (cast(^u8 )&vm.memory[vm.registers[kind.dst]])^ = cast(u8 )vm.registers[kind.p1];
+            case STORE16: (cast(^u16)&vm.memory[vm.registers[kind.dst]])^ = cast(u16)vm.registers[kind.p1];
+            case STORE32: (cast(^u32)&vm.memory[vm.registers[kind.dst]])^ = cast(u32)vm.registers[kind.p1];
+            case STORE64: (cast(^u64)&vm.memory[vm.registers[kind.dst]])^ = cast(u64)vm.registers[kind.p1];
 
-            case push: (cast(^u64)&vm.memory[vm.registers[.rsp]])^ = vm.registers[kind.p1]; vm.registers[.rsp] -= 8;
-            case pop:  vm.registers[.rsp] += 8; vm.registers[kind.dst] = (cast(^u64)&vm.memory[vm.registers[.rsp]])^; mem.zero(&vm.memory[vm.registers[.rsp]], 8);
+            case PUSH: (cast(^u64)&vm.memory[vm.registers[.rsp]])^ = vm.registers[kind.p1]; vm.registers[.rsp] -= 8;
+            case POP:  vm.registers[.rsp] += 8; vm.registers[kind.dst] = (cast(^u64)&vm.memory[vm.registers[.rsp]])^; mem.zero(&vm.memory[vm.registers[.rsp]], 8);
 
-            case mov:  vm.registers[kind.dst] = vm.registers[kind.src];
-            case movi: vm.registers[kind.dst] = transmute(u64)kind.imm;
+            case MOV:  vm.registers[kind.dst] = vm.registers[kind.src];
+            case MOVI: vm.registers[kind.dst] = transmute(u64)kind.imm;
 
-            case add:   vm.registers[kind.dst] = vm.registers[kind.p1] + vm.registers[kind.p2];
-            case addi:  vm.registers[kind.dst] = vm.registers[kind.p1] + transmute(u64)kind.imm;
-            case fadd:  vm.registers[kind.dst] = transmute(u64)(transmute(f64)vm.registers[kind.p1] + transmute(f64)vm.registers[kind.p2]);
-            case faddi: vm.registers[kind.dst] = transmute(u64)(transmute(f64)vm.registers[kind.p1] + kind.imm);
+            case ADD:   vm.registers[kind.dst] = vm.registers[kind.p1] + vm.registers[kind.p2];
+            case ADDI:  vm.registers[kind.dst] = vm.registers[kind.p1] + transmute(u64)kind.imm;
+            case FADD:  vm.registers[kind.dst] = transmute(u64)(transmute(f64)vm.registers[kind.p1] + transmute(f64)vm.registers[kind.p2]);
+            case FADDI: vm.registers[kind.dst] = transmute(u64)(transmute(f64)vm.registers[kind.p1] + kind.imm);
 
-            case sub:  vm.registers[kind.dst] = vm.registers[kind.p1] - vm.registers[kind.p2];
-            case fsub: vm.registers[kind.dst] = transmute(u64)(transmute(f64)vm.registers[kind.p1] - transmute(f64)vm.registers[kind.p2]);
+            case SUB:  vm.registers[kind.dst] = vm.registers[kind.p1] - vm.registers[kind.p2];
+            case FSUB: vm.registers[kind.dst] = transmute(u64)(transmute(f64)vm.registers[kind.p1] - transmute(f64)vm.registers[kind.p2]);
 
-            case mul:  vm.registers[kind.dst] = vm.registers[kind.p1] * vm.registers[kind.p2];
-            case fmul: vm.registers[kind.dst] = transmute(u64)(transmute(f64)vm.registers[kind.p1] * transmute(f64)vm.registers[kind.p2]);
+            case MUL:  vm.registers[kind.dst] = vm.registers[kind.p1] * vm.registers[kind.p2];
+            case FMUL: vm.registers[kind.dst] = transmute(u64)(transmute(f64)vm.registers[kind.p1] * transmute(f64)vm.registers[kind.p2]);
 
-            case sdiv: vm.registers[kind.dst] = transmute(u64)(transmute(i64)vm.registers[kind.p1] / transmute(i64)vm.registers[kind.p2]);
-            case udiv: vm.registers[kind.dst] = vm.registers[kind.p1] / vm.registers[kind.p2];
-            case fdiv: vm.registers[kind.dst] = transmute(u64)(transmute(f64)vm.registers[kind.p1] / transmute(f64)vm.registers[kind.p2]);
+            case SDIV: vm.registers[kind.dst] = transmute(u64)(transmute(i64)vm.registers[kind.p1] / transmute(i64)vm.registers[kind.p2]);
+            case UDIV: vm.registers[kind.dst] = vm.registers[kind.p1] / vm.registers[kind.p2];
+            case FDIV: vm.registers[kind.dst] = transmute(u64)(transmute(f64)vm.registers[kind.p1] / transmute(f64)vm.registers[kind.p2]);
 
-            case eq:  vm.registers[kind.dst] = cast(u64)(vm.registers[kind.p1] == vm.registers[kind.p2]);
-            case lt:  vm.registers[kind.dst] = cast(u64)(vm.registers[kind.p1] <  vm.registers[kind.p2]);
-            case lte: vm.registers[kind.dst] = cast(u64)(vm.registers[kind.p1] <= vm.registers[kind.p2]);
+            case EQ:  vm.registers[kind.dst] = cast(u64)(vm.registers[kind.p1] == vm.registers[kind.p2]);
+            case NEQ: vm.registers[kind.dst] = cast(u64)(vm.registers[kind.p1] != vm.registers[kind.p2]);
+            case LT:  vm.registers[kind.dst] = cast(u64)(vm.registers[kind.p1] <  vm.registers[kind.p2]);
+            case LTE: vm.registers[kind.dst] = cast(u64)(vm.registers[kind.p1] <= vm.registers[kind.p2]);
 
-            case goto_ip:                                           vm.registers[.rip] = kind.ip-1;                                  // note(josh): depends on `rip += 1` being after the switch
-            case gotoif_ip:                                         if vm.registers[kind.p1] != 0 do vm.registers[.rip] = kind.ip-1; // note(josh): depends on `rip += 1` being after the switch
-            case jump_ip:   vm.registers[.ra] = vm.registers[.rip]; vm.registers[.rip] = kind.ip-1;                                  // note(josh): depends on `rip += 1` being after the switch
-            case jumpif_ip: vm.registers[.ra] = vm.registers[.rip]; if vm.registers[kind.p1] != 0 do vm.registers[.rip] = kind.ip-1; // note(josh): depends on `rip += 1` being after the switch
+            case GOTO_IP:                                            vm.registers[.rip] = kind.ip-1;                                  // note(josh): depends on `rip += 1` being after the switch
+            case GOTOIF_IP:                                          if vm.registers[kind.p1] != 0 do vm.registers[.rip] = kind.ip-1; // note(josh): depends on `rip += 1` being after the switch
+            case GOTOIFZ_IP:                                         if vm.registers[kind.p1] == 0 do vm.registers[.rip] = kind.ip-1; // note(josh): depends on `rip += 1` being after the switch
+            case JUMP_IP:    vm.registers[.ra] = vm.registers[.rip]; vm.registers[.rip] = kind.ip-1;                                  // note(josh): depends on `rip += 1` being after the switch
+            case JUMPIF_IP:  vm.registers[.ra] = vm.registers[.rip]; if vm.registers[kind.p1] != 0 do vm.registers[.rip] = kind.ip-1; // note(josh): depends on `rip += 1` being after the switch
+            case JUMPIFZ_IP: vm.registers[.ra] = vm.registers[.rip]; if vm.registers[kind.p1] == 0 do vm.registers[.rip] = kind.ip-1; // note(josh): depends on `rip += 1` being after the switch
 
-            case goto:   panic("didn't remap goto");
-            case gotoif: panic("didn't remap gotoif");
-            case jump:   panic("didn't remap jump");
-            case jumpif: panic("didn't remap jumpif");
+            case GOTO:    panic("didn't remap goto");
+            case GOTOIF:  panic("didn't remap gotoif");
+            case GOTOIFZ: panic("didn't remap gotoifz");
+            case JUMP:    panic("didn't remap jump");
+            case JUMPIF:  panic("didn't remap jumpif");
+            case JUMPIFZ: panic("didn't remap jumpifz");
 
-            case exit: break instruction_loop;
+            case EXIT: break instruction_loop;
 
-            case print_reg: fmt.println("REGISTER", kind.p1, "=", vm.registers[kind.p1]);
+            case PRINT_REG: fmt.println("REGISTER", kind.p1, "=", vm.registers[kind.p1]);
             case: panic(tprint(kind));
         }
         vm.registers[.rip] += 1;
@@ -400,156 +417,27 @@ execute_vm :: proc(vm: ^VM) {
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-/*
-
-RZ :: 0;
-RFP :: 1;
-RSP :: 2;
-RIP :: 3;
-RDATA :: 4;
-RUSER :: 5; // user-facing registers start here
-
-STACK :: 0;
-DATA :: 128;
-
-
-VM :: struct {
-    registers: [128]int,
-    memory: [1024]byte,
-    instructions: [dynamic]Instruction,
+is_power_of_two :: inline proc(x: uintptr) -> bool {
+    if x <= 0 do return false;
+    return (x & (x-1)) == 0;
 }
 
-Instruction :: struct {
-    kind: Instruction_Kind,
-    p1, p2, p3: int,
+align_forward :: inline proc(ptr: rawptr, align: uintptr) -> rawptr {
+    return rawptr(align_forward_uintptr(uintptr(ptr), align));
 }
 
-Instruction_Kind :: enum {
-    Move,              // reg_dst, reg_param
-    Push,              // reg_param
-    Pop,               // reg_dst
-    Load,              // reg_dst, reg_ptr, imm_offset
-    Load_Immediate,    // reg_dst, imm_param
-    Store,             // reg_ptr, imm_offset, reg_param
-    Add,               // reg_dst, reg_param1, reg_param2
-    Add_Immediate,     // reg_dst, reg_param1
-    Subtract,          // reg_dst, reg_param1, reg_param2
-    Multiply,          // reg_dst, reg_param1, reg_param2
-    Divide,            // reg_dst, reg_param1, reg_param2
-    Jump_If_Zero,      // imm_jmp, reg_param
+align_forward_uintptr :: proc(ptr, align: uintptr) -> uintptr {
+    assert(is_power_of_two(align));
+
+    p := ptr;
+    modulo := p & (align-1);
+    if modulo != 0 do p += align - modulo;
+    return p;
 }
 
-gen_vm :: proc(ir: IR_Result) -> ^VM {
-    vm := new(VM);
-    vm.registers[RDATA] = DATA;
-
-    // todo(josh): generate data segment
-
-    for procedure in ir.procedures {
-        label_map: map[string]int;
-        defer delete(label_map);
-
-        inst(vm, .Push, RFP);
-        inst(vm, .Move, RFP, RSP);
-        if procedure.stack_frame_size > 0 {
-            inst(vm, .Add_Immediate, RSP, procedure.stack_frame_size);
-        }
-        for stmt in procedure.statements {
-            switch kind in stmt.kind {
-                case IR_Load: {
-                    switch storage in kind.storage.kind {
-                        case Stack_Frame_Storage: inst(vm, .Load, user_reg(kind.dst.register), RFP, storage.offset);
-                        case Global_Storage:      inst(vm, .Load, user_reg(kind.dst.register), RDATA, storage.offset);
-                        case: unimplemented(fmt.tprint(kind));
-                    }
-                }
-                case IR_Load_Immediate: inst(vm, .Load_Immediate, user_reg(kind.dst.register), kind.imm);
-                case IR_Store: {
-                    switch storage in kind.storage.kind {
-                        case Stack_Frame_Storage: inst(vm, .Store, RFP,   storage.offset, user_reg(kind.value.register));
-                        case Global_Storage:      inst(vm, .Store, RDATA, storage.offset, user_reg(kind.value.register));
-                        case: unimplemented(fmt.tprint(kind));
-                    }
-                }
-                case IR_Binop: {
-                    #partial
-                    switch kind.op {
-                        case .Plus:     inst(vm, .Add,      user_reg(kind.dst.register), user_reg(kind.lhs.register), user_reg(kind.rhs.register));
-                        case .Minus:    inst(vm, .Subtract, user_reg(kind.dst.register), user_reg(kind.lhs.register), user_reg(kind.rhs.register));
-                        case .Multiply: inst(vm, .Multiply, user_reg(kind.dst.register), user_reg(kind.lhs.register), user_reg(kind.rhs.register));
-                        case .Divide:   inst(vm, .Divide,   user_reg(kind.dst.register), user_reg(kind.lhs.register), user_reg(kind.rhs.register));
-                        case: unimplemented(fmt.tprint(kind.op));
-                    }
-                }
-                case IR_Unary: {
-                    #partial
-                    switch kind.op {
-                        case: unimplemented(fmt.tprint(kind.op));
-                    }
-                }
-                case: unimplemented(fmt.tprint(kind));
-            }
-        }
-        inst(vm, .Pop, RFP);
-    }
-
-    for vm.registers[RIP] < len(vm.instructions) {
-        using instruction := vm.instructions[vm.registers[RIP]];
-
-        switch kind {
-            case .Jump_If_Zero:   if vm.registers[p2] == 0 do vm.registers[RIP] = p1-1; // -1 because we increment RIP after every instruction
-            case .Move:           vm.registers[p1] = vm.registers[p2];
-            case .Push:           (cast(^int)&vm.memory[vm.registers[RSP]])^ = vm.registers[p1]; vm.registers[RSP] += size_of(int);
-            case .Pop:            vm.registers[RSP] -= size_of(int); vm.registers[p1] = (cast(^int)&vm.memory[vm.registers[RSP]])^;
-            case .Load:           vm.registers[p1] = (cast(^int)&vm.memory[vm.registers[p2] + p3])^;
-            case .Load_Immediate: vm.registers[p1] = p2;
-            case .Store:          (cast(^int)&vm.memory[vm.registers[p1] + p2])^ = vm.registers[p3];
-            case .Add:            vm.registers[p1] = vm.registers[p2] + vm.registers[p3];
-            case .Add_Immediate:  vm.registers[p1] += p2;
-            case .Subtract:       vm.registers[p1] = vm.registers[p2] - vm.registers[p3];
-            case .Multiply:       vm.registers[p1] = vm.registers[p2] * vm.registers[p3];
-            case .Divide:         vm.registers[p1] = vm.registers[p2] / vm.registers[p3];
-            case: unimplemented(fmt.tprint(kind));
-        }
-
-        vm.registers[RZ] = 0;
-        vm.registers[RIP] += 1;
-    }
-
-    fmt.println(transmute([]int)vm.memory[:32]);
-    fmt.println(transmute([]int)vm.memory[DATA:DATA+32]);
-    fmt.println(vm.registers[:20]);
-
-    return vm;
+align_forward_int :: inline proc(ptr, align: int) -> int {
+    return int(align_forward_uintptr(uintptr(ptr), uintptr(align)));
 }
-
-inst :: proc(vm: ^VM, k: Instruction_Kind, p1: int, p2: int = 0, p3: int = 0) {
-    append(&vm.instructions, Instruction{k, p1, p2, p3});
+align_forward_uint :: inline proc(ptr, align: uint) -> uint {
+    return uint(align_forward_uintptr(uintptr(ptr), uintptr(align)));
 }
-
-user_reg :: proc(reg: int) -> int {
-    return RUSER + reg;
-}
-
-*/

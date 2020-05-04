@@ -247,6 +247,7 @@ typecheck_proc :: proc(procedure: ^Ast_Proc) {
         assert(procedure.block != nil);
         typecheck_scope(procedure.block);
     }
+    assert(procedure.type != nil);
 }
 
 typecheck_return :: proc(return_statement: ^Ast_Return) {

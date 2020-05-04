@@ -1,3 +1,27 @@
+// todo(josh): test assigning to globals
+// var a: int;
+
+// proc factorial(n: int) : int {
+//  if (n == 1) {
+//      return 1;
+//  }
+//  return n * factorial(n-1);
+// }
+
+proc foo(x: int) : int {
+    return 321;
+}
+
 proc main() {
-	var a: int;
+    var a: int;
+    a = foo(12);
+
+    // var a: int;
+    // a = 12;
+    // if (a != 12) {
+    //  a = 21;
+    // }
+    // else {
+    //  a = 123;
+    // }
 }

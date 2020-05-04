@@ -225,6 +225,7 @@ parse_proc :: proc(lexer: ^Lexer) -> ^Ast_Proc {
         }
 
         param := parse_var(lexer, false);
+        param.is_parameter = true;
         append(&params, param);
     }
     procedure.params = params[:];
@@ -573,7 +574,7 @@ parse_base_expr :: proc(lexer: ^Lexer) -> ^Ast_Expr {
             queue_identifier_for_resolving(ident);
         }
         case .Number: {
-            expr.kind = Expr_Number{strings.contains(token.slice, "."), strconv.parse_int(token.slice), strconv.parse_f64(token.slice), strconv.parse_uint(token.slice)};
+            expr.kind = Expr_Number{strings.contains(token.slice, "."), strconv.parse_i64(token.slice), strconv.parse_f64(token.slice), strconv.parse_u64(token.slice)};
         }
         case .String: {
             str, length := unescape_string(token.slice);
@@ -746,7 +747,9 @@ Ast_Var :: struct {
     expr: ^Ast_Expr,
     type: ^Type,
     is_const: bool,
+    is_parameter: bool,
     constant_value: Constant_Value,
+    storage: IR_Storage,
 }
 
 Ast_Proc :: struct {
@@ -754,7 +757,7 @@ Ast_Proc :: struct {
     params: []^Ast_Var,
     return_typespec: ^Ast_Typespec,
     block: ^Ast_Scope,
-    variables: [dynamic]^Ast_Var,
+    variables: [dynamic]^Ast_Var, // note(josh): contains the procedures parameters and all vars defined in the body
     type: ^Type_Proc,
     is_foreign: bool,
 }
@@ -847,9 +850,9 @@ Expr_Dereference :: struct {
 }
 Expr_Number :: struct {
     has_a_dot: bool,
-    int_value: int,
+    int_value: i64,
     float_value: f64,
-    uint_value: uint,
+    uint_value: u64,
 }
 Expr_String :: struct {
     str: string,

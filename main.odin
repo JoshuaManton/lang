@@ -6,8 +6,8 @@ import "core:strings"
 import "core:os"
 
 main :: proc() {
-    test_vm();
-    if true do return;
+    // test_vm();
+    // if true do return;
 
     if len(os.args) < 2 {
         fmt.println("Usage:\n  lang <filename>");
@@ -27,6 +27,24 @@ main :: proc() {
     resolve_identifiers();
     fmt.println("Checking types...");
     typecheck_node(NODE(global_scope));
+    fmt.println("Generating IR...");
+    ir := generate_ir();
+
+    // for procedure in ir.procedures {
+    //     fmt.println(procedure.name);
+    //     for inst in procedure.instructions {
+    //         fmt.println(inst.kind);
+    //     }
+    // }
+    // for variable in ir.global_variables {
+    //     fmt.println(variable);
+    // }
+
+
+    vm := translate_ir_to_vm(ir);
+    // execute_vm(vm);
+
+
     // when false {
     //     fmt.println("Generating IR...");
     //     ir := gen_ir();
@@ -172,3 +190,12 @@ gv_name :: proc(node: ^Ast_Node) -> string {
 
 println :: fmt.println;
 tprint :: fmt.tprint;
+
+Maybe :: union(T: typeid) {
+    T,
+}
+
+getval :: inline proc(m: ^Maybe($T)) -> (^T, bool) {
+    if _, ok := m.(T); !ok do return nil, false;
+    return &m.(T), true;
+}
