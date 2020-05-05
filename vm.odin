@@ -11,6 +11,7 @@ VM :: struct {
     entry_point: u64,
     memory: []byte,
     registers: [Register]u64,
+    persistent_storage_begin: u64,
     persistent_storage_watermark: int,
 
     label_mapping: map[string]u64,
@@ -74,6 +75,7 @@ Instruction :: union {
     STORE64,
 
     EXIT,
+    TRAP,
 
     PRINT_REG,
 }
@@ -205,6 +207,10 @@ EXIT :: struct {
 
 }
 
+TRAP :: struct {
+
+}
+
 PRINT_REG :: struct {
     p1: Register,
 }
@@ -224,7 +230,8 @@ test_vm :: proc() {
     */
 
     {
-        function_header(vm, "main");
+        assert(false);
+        // function_header(vm, "main");
 
         // save our things
         add_instruction(vm, PUSH{.rfp});
@@ -251,7 +258,8 @@ test_vm :: proc() {
     }
 
     {
-        function_header(vm, "factorial");
+        assert(false);
+        // function_header(vm, "factorial");
 
         add_instruction(vm, POP{.r1});           // pop param
 
@@ -290,11 +298,6 @@ test_vm :: proc() {
     execute_vm(vm);
 }
 
-function_header :: proc(vm: ^VM, name: string) {
-    label(vm, name);
-    add_instruction(vm, MOV{.rfp, .rsp});
-}
-
 call :: proc(vm: ^VM, label: string) {
     add_instruction(vm, JUMP{label});
 }
@@ -306,9 +309,9 @@ ret :: proc(vm: ^VM) {
 make_vm :: proc() -> ^VM {
     vm := new(VM);
     vm.memory = make([]byte, mem.megabytes(10));
-    top_of_stack := transmute(u64)mem.megabytes(1);
-    vm.registers[.rsp] = top_of_stack;
-    vm.persistent_storage_watermark = cast(int)top_of_stack;
+    vm.persistent_storage_begin = transmute(u64)mem.megabytes(1);
+    vm.registers[.rsp] = vm.persistent_storage_begin;
+    vm.persistent_storage_watermark = cast(int)vm.persistent_storage_begin;
     return vm;
 }
 
@@ -332,6 +335,9 @@ vm_allocate_static_storage :: proc(vm: ^VM, size: int) -> int {
 }
 
 execute_vm :: proc(vm: ^VM) {
+    global_storage_start_index := vm_allocate_static_storage(vm, 4);
+    vm.memory[global_storage_start_index] = 149;
+
     for instruction, idx in vm.instructions {
         if cast(u64)idx in vm.label_mapping_from_ip {
             fmt.printf("%s:\n", vm.label_mapping_from_ip[cast(u64)idx]);
@@ -349,7 +355,7 @@ execute_vm :: proc(vm: ^VM) {
         }
     }
 
-    fmt.println("-----------------------------------------");
+    // fmt.println("-----------------------------------------");
 
     vm.registers[.rip] = vm.entry_point;
     instruction_loop:
@@ -365,8 +371,8 @@ execute_vm :: proc(vm: ^VM) {
             case STORE32: (cast(^u32)&vm.memory[vm.registers[kind.dst]])^ = cast(u32)vm.registers[kind.p1];
             case STORE64: (cast(^u64)&vm.memory[vm.registers[kind.dst]])^ = cast(u64)vm.registers[kind.p1];
 
-            case PUSH: (cast(^u64)&vm.memory[vm.registers[.rsp]])^ = vm.registers[kind.p1]; vm.registers[.rsp] -= 8;
-            case POP:  vm.registers[.rsp] += 8; vm.registers[kind.dst] = (cast(^u64)&vm.memory[vm.registers[.rsp]])^; mem.zero(&vm.memory[vm.registers[.rsp]], 8);
+            case PUSH: vm.registers[.rsp] -= 8; (cast(^u64)&vm.memory[vm.registers[.rsp]])^ = vm.registers[kind.p1];
+            case POP:  vm.registers[kind.dst] = (cast(^u64)&vm.memory[vm.registers[.rsp]])^; mem.zero(&vm.memory[vm.registers[.rsp]], 8); vm.registers[.rsp] += 8;
 
             case MOV:  vm.registers[kind.dst] = vm.registers[kind.src];
             case MOVI: vm.registers[kind.dst] = transmute(u64)kind.imm;
@@ -406,10 +412,19 @@ execute_vm :: proc(vm: ^VM) {
             case JUMPIFZ: panic("didn't remap jumpifz");
 
             case EXIT: break instruction_loop;
+            case TRAP: fmt.println("Crash!!!"); break instruction_loop;
 
             case PRINT_REG: fmt.println("REGISTER", kind.p1, "=", vm.registers[kind.p1]);
             case: panic(tprint(kind));
         }
+
+        // fmt.printf("| %d | %d | %d | %d |\n", vm.registers[.r1], vm.registers[.r2], vm.registers[.r3], vm.registers[.r4]);
+
+        // for idx := vm.persistent_storage_begin; idx >= vm.registers[.rsp]-4; idx -= 1 {
+        //     fmt.printf("| %d ", vm.memory[idx]);
+        // }
+        // fmt.printf("\n");
+
         vm.registers[.rip] += 1;
         vm.registers[.rz] = 0;
     }

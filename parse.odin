@@ -227,6 +227,12 @@ parse_proc :: proc(lexer: ^Lexer) -> ^Ast_Proc {
         param := parse_var(lexer, false);
         param.is_parameter = true;
         append(&params, param);
+
+        if c, ok := peek(lexer); ok {
+            if c.kind == .Comma {
+                get_next_token(lexer);
+            }
+        }
     }
     procedure.params = params[:];
 

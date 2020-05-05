@@ -1,27 +1,25 @@
-// todo(josh): test assigning to globals
-// var a: int;
+proc __trap() #foreign;
 
-// proc factorial(n: int) : int {
-//  if (n == 1) {
-//      return 1;
-//  }
-//  return n * factorial(n-1);
-// }
-
-proc foo(x: int) : int {
-    return 321;
+proc assert(condition: bool) {
+    if (condition == false) {
+        __trap();
+    }
 }
 
-proc main() {
-    var a: int;
-    a = foo(12);
+proc factorial(n: int) : int {
+    if (n == 1) {
+        return 1;
+    }
+    return n * factorial(n-1);
+}
 
-    // var a: int;
-    // a = 12;
-    // if (a != 12) {
-    //  a = 21;
-    // }
-    // else {
-    //  a = 123;
-    // }
+var b: int;
+
+proc main() {
+    b = 5;
+    b = factorial(b);
+    assert(b == 120);
+
+    var a: int = factorial(10);
+    assert(a == 3628800);
 }

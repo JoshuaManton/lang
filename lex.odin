@@ -103,7 +103,7 @@ expect :: proc(lexer: ^Lexer, kind: Token_Kind, loc := #caller_location) -> Toke
         assert(false, fmt.tprint("Unexpected end of text from: ", loc));
     }
     if token.kind != kind {
-        assert(false, fmt.tprint("Unexpected token: ", token.slice, " from: ", loc));
+        assert(false, fmt.tprint("Unexpected token: ", token.slice, " expected: ", kind, " from: ", loc));
     }
     return token;
 }

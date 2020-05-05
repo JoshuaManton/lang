@@ -54,7 +54,7 @@ init_types :: proc() {
     type_float = type_f32; register_declaration(global_scope, "float", Decl_Type{type_float});
 
     // "special" types
-    type_bool = TYPE(make_type(Type_Primitive{}, 1)); register_declaration(global_scope, "bool", Decl_Type{type_bool});
+    type_bool = TYPE(make_type(Type_Primitive{}, 4)); register_declaration(global_scope, "bool", Decl_Type{type_bool});
     type_type = TYPE(make_type(Type_Primitive{}, 0)); register_declaration(global_scope, "type", Decl_Type{type_type});
     type_string = TYPE(make_type_struct([]Field{{"data", TYPE(get_or_make_type_ptr_to(type_byte))}, {"length", type_int}})); register_declaration(global_scope, "string", Decl_Type{type_string});
     type_rawptr = TYPE(make_type(Type_Ptr{nil}, 8)); register_declaration(global_scope, "rawptr", Decl_Type{type_rawptr});
@@ -378,7 +378,6 @@ typecheck_expr :: proc(expr: ^Ast_Expr, expected_type: ^Type) {
                         // todo(josh): constant values
                     }
                 }
-
                 case .Plus: {
                     expr.type = lhs_type;
                     if kind.lhs.constant_value != nil && kind.rhs.constant_value != nil {
