@@ -1,9 +1,25 @@
 proc __trap() #foreign;
+proc __print_int(x: int) #foreign;
+
+proc print(n: int) {
+    __print_int(n);
+}
 
 proc assert(condition: bool) {
     if (condition == false) {
         __trap();
     }
+}
+
+var aa: int;
+var bb: int;
+var cc: int;
+
+struct Foo {
+    s1: string;
+    s2: string;
+    s3: string;
+    s4: string;
 }
 
 proc factorial(n: int) : int {
@@ -13,13 +29,50 @@ proc factorial(n: int) : int {
     return n * factorial(n-1);
 }
 
-var b: int;
-
 proc main() {
-    b = 5;
-    b = factorial(b);
-    assert(b == 120);
+    aa = 5;
+    aa = factorial(aa);
 
-    var a: int = factorial(10);
-    assert(a == 3628800);
+    bb = factorial(6);
+
+    cc = aa + bb;
+
+    var x: int = factorial(10);
+
+    assert(aa == 120);
+    assert(bb == 720);
+    assert(cc == 840);
+    assert(x == 3628800);
+
+    print(aa);
+    print(bb);
+    print(cc);
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

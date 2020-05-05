@@ -5,15 +5,15 @@ import "core:fmt"
 import "shared:wb/logging"
 
 // todo(josh): graphical debugger
-// todo(josh): fix alignment
 // todo(josh): #run
 // todo(josh): get rid of all these casts!!!!
 // todo(josh): fix #includes
+// todo(josh): error on usage before declared in scope
+// todo(josh): parameters are scoped to the scope that the procedure is in :grimacing: :grimacing: :grimacing:
 
 IR_Result :: struct {
     procedures: [dynamic]^IR_Proc,
     global_variables: [dynamic]^IR_Var,
-    data_segment_size: u64, // todo(josh): handle alignment
 }
 
 IR_Proc :: struct {
@@ -27,7 +27,7 @@ IR_Proc :: struct {
 
 IR_Var :: struct {
     procedure: ^IR_Proc, // note(josh): nil for global vars
-    storage: IR_Storage,
+    storage: ^IR_Storage,
     type: ^Type,
 }
 
@@ -47,7 +47,7 @@ Stack_Frame_Storage :: struct {
     size: u64,
 }
 Global_Storage :: struct {
-    offset: u64,
+    address: u64,
     size: u64,
 }
 
@@ -106,11 +106,11 @@ IR_Move_Immediate :: struct {
     },
 }
 IR_Store :: struct {
-    storage: IR_Storage,
+    storage: ^IR_Storage,
     reg: u64,
 }
 IR_Load :: struct {
-    storage: IR_Storage,
+    storage: ^IR_Storage,
     dst: u64,
 }
 IR_Push :: struct {
@@ -144,7 +144,7 @@ generate_ir :: proc() -> ^IR_Result {
                         gen_ir_proc(ir, &kind);
                     }
                     else {
-                        assert(kind.name == "__trap");
+                        assert(kind.name == "__trap" || kind.name == "__print_int");
                     }
                 }
                 case Ast_Var: gen_ir_var(ir, &kind, nil);
@@ -269,11 +269,11 @@ gen_ir_assign :: proc(procedure: ^IR_Proc, assign: ^Ast_Assign) {
     gen_ir_store(procedure, storage, result);
 }
 
-gen_ir_store :: proc(procedure: ^IR_Proc, storage: IR_Storage, reg: u64) {
+gen_ir_store :: proc(procedure: ^IR_Proc, storage: ^IR_Storage, reg: u64) {
     ir_inst(procedure, IR_Store{storage, reg});
 }
 
-gen_ir_load :: proc(procedure: ^IR_Proc, storage: IR_Storage, dst: u64) {
+gen_ir_load :: proc(procedure: ^IR_Proc, storage: ^IR_Storage, dst: u64) {
     ir_inst(procedure, IR_Load{storage, dst});
 }
 
@@ -283,13 +283,14 @@ ir_inst :: proc(procedure: ^IR_Proc, instruction: IR_Instruction_Kind) {
     append(&current_block.instructions, IR_Instruction{instruction});
 }
 
-get_storage_for_expr :: proc(expr: ^Ast_Expr) -> IR_Storage {
+get_storage_for_expr :: proc(expr: ^Ast_Expr) -> ^IR_Storage {
     #partial
     switch kind in expr.kind {
         case Expr_Identifier: {
             #partial
             switch decl in kind.ident.resolved_declaration.kind {
                 case Decl_Var: {
+                    assert(decl.var.storage != nil);
                     assert(decl.var.storage.kind != nil);
                     return decl.var.storage;
                 }
@@ -434,14 +435,13 @@ free_register :: proc(procedure: ^IR_Proc, reg: u64, loc := #caller_location) {
 
 gen_ir_var :: proc(ir: ^IR_Result, var: ^Ast_Var, procedure: ^IR_Proc) -> ^IR_Var {
     if procedure == nil {
-        ir_var := make_ir_var(var, IR_Storage{Global_Storage{ir.data_segment_size, cast(u64)var.type.size}});
-        ir.data_segment_size += cast(u64)ir_var.type.size; // todo(josh): handle alignment
+        ir_var := make_ir_var(var, IR_Storage{Global_Storage{0, cast(u64)var.type.size}});
         append(&ir.global_variables, ir_var);
         return ir_var;
     }
     else {
         ir_var := make_ir_var(var, IR_Storage{Stack_Frame_Storage{procedure, procedure.stack_frame_size, cast(u64)var.type.size}});
-        procedure.stack_frame_size += cast(u64)ir_var.type.size; // todo(josh): handle alignment
+        procedure.stack_frame_size += cast(u64)ir_var.type.size;
         ir_var.procedure = procedure;
         return ir_var;
     }
@@ -450,6 +450,7 @@ gen_ir_var :: proc(ir: ^IR_Result, var: ^Ast_Var, procedure: ^IR_Proc) -> ^IR_Va
 }
 
 make_ir_var :: proc(var: ^Ast_Var, storage: IR_Storage) -> ^IR_Var {
+    storage := new_clone(storage);
     var.storage = storage;
     ir_var := new(IR_Var);
     assert(var.type != nil);
@@ -462,8 +463,12 @@ translate_ir_to_vm :: proc(ir: ^IR_Result) -> ^VM {
     vm := make_vm();
 
     for variable in ir.global_variables {
-        offset := vm_allocate_static_storage(vm, cast(int)variable.type.size);
-        variable.storage.kind.(Global_Storage).offset = cast(u64)offset;
+        address := vm_allocate_static_storage(vm, cast(int)variable.type.size);
+        assert(address != 0);
+        // weird that we have to do this pointery thing
+        _, ok := variable.storage.kind.(Global_Storage); assert(ok);
+        storage := cast(^Global_Storage)variable.storage;
+        storage.address = cast(u64)address;
     }
 
     for procedure in ir.procedures {
@@ -479,7 +484,7 @@ translate_ir_to_vm :: proc(ir: ^IR_Result) -> ^VM {
     return vm;
 }
 
-gen_vm_load :: proc(vm: ^VM, procedure: ^IR_Proc, dst: Register, storage: IR_Storage) {
+gen_vm_load :: proc(vm: ^VM, procedure: ^IR_Proc, dst: Register, storage: ^IR_Storage) {
     switch kind in storage.kind {
         case Stack_Frame_Storage: {
             add_instruction(vm, ADDI{.rt, .rfp, -cast(i64)(kind.offset_in_stack_frame + kind.size)});
@@ -491,8 +496,8 @@ gen_vm_load :: proc(vm: ^VM, procedure: ^IR_Proc, dst: Register, storage: IR_Sto
             }
         }
         case Global_Storage: {
-            // todo(josh): this vm.persistent_storage_begin feels like cheating
-            add_instruction(vm, MOVI{.rt, cast(i64)(vm.persistent_storage_begin + kind.offset)});
+            assert(kind.address != 0);
+            add_instruction(vm, MOVI{.rt, cast(i64)kind.address});
             switch kind.size {
                 case 1: add_instruction(vm, LOAD8 {dst, .rt});
                 case 2: add_instruction(vm, LOAD16{dst, .rt});
@@ -504,7 +509,7 @@ gen_vm_load :: proc(vm: ^VM, procedure: ^IR_Proc, dst: Register, storage: IR_Sto
     }
 }
 
-gen_vm_store :: proc(vm: ^VM, procedure: ^IR_Proc, src: Register, storage: IR_Storage) {
+gen_vm_store :: proc(vm: ^VM, procedure: ^IR_Proc, src: Register, storage: ^IR_Storage) {
     switch storage in storage.kind {
         case Stack_Frame_Storage: {
             add_instruction(vm, ADDI{.rt, .rfp, -cast(i64)(storage.offset_in_stack_frame + storage.size)});
@@ -516,8 +521,8 @@ gen_vm_store :: proc(vm: ^VM, procedure: ^IR_Proc, src: Register, storage: IR_St
             }
         }
         case Global_Storage: {
-            // todo(josh): this vm.persistent_storage_begin feels like cheating
-            add_instruction(vm, MOVI{.rt, cast(i64)(vm.persistent_storage_begin + storage.offset)});
+            assert(storage.address != 0);
+            add_instruction(vm, MOVI{.rt, cast(i64)storage.address});
             switch storage.size {
                 case 1: add_instruction(vm, STORE8 {.rt, src});
                 case 2: add_instruction(vm, STORE16{.rt, src});
@@ -648,6 +653,12 @@ gen_vm_block :: proc(vm: ^VM, procedure: ^IR_Proc, block: ^IR_Block) {
                     case "__trap": {
                         add_instruction(vm, TRAP{});
                     }
+                    case "__print_int": {
+                        assert(len(kind.parameters) == 1);
+                        p := kind.parameters[0];
+                        gen_vm_block(vm, procedure, p.block);
+                        add_instruction(vm, PRINT_INT{VM_REGISTER(p.result_register)});
+                    }
                     case: {
                         for reg in kind.registers_to_save {
                             add_instruction(vm, PUSH{VM_REGISTER(reg)});
@@ -656,7 +667,7 @@ gen_vm_block :: proc(vm: ^VM, procedure: ^IR_Proc, block: ^IR_Block) {
                         parameter_rsp_offset: i64 = -16; // :CallingConvention the top of the stack for a procedure has 8 bytes for caller rfp and 8 bytes for caller ra
                         for param in kind.parameters {
                             gen_vm_block(vm, procedure, param.block);
-                            parameter_rsp_offset -= cast(i64)param.type.size; // todo(josh): alignment
+                            parameter_rsp_offset -= cast(i64)param.type.size;
                             add_instruction(vm, ADDI{.rt, .rsp, parameter_rsp_offset});
                             switch param.type.size {
                                 case 1: add_instruction(vm, STORE8 {.rt, VM_REGISTER(param.result_register)});

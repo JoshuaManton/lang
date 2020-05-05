@@ -755,7 +755,7 @@ Ast_Var :: struct {
     is_const: bool,
     is_parameter: bool,
     constant_value: Constant_Value,
-    storage: IR_Storage,
+    storage: ^IR_Storage,
 }
 
 Ast_Proc :: struct {

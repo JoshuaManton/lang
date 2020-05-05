@@ -77,6 +77,8 @@ Instruction :: union {
     EXIT,
     TRAP,
 
+    PRINT_INT,
+
     PRINT_REG,
 }
 
@@ -190,10 +192,6 @@ JUMPIFZ_IP :: struct {
     ip: u64,
 }
 
-Foo :: struct(T: typeid) {
-    arr: [32]T,
-}
-
 LOAD8   :: struct { dst, p1: Register, }
 LOAD16  :: struct { dst, p1: Register, }
 LOAD32  :: struct { dst, p1: Register, }
@@ -207,9 +205,19 @@ EXIT :: struct {
 
 }
 
+
+
+// Intrinsics
+
 TRAP :: struct {
 
 }
+
+PRINT_INT :: struct {
+    p1: Register,
+}
+
+
 
 PRINT_REG :: struct {
     p1: Register,
@@ -329,8 +337,8 @@ label :: proc(vm: ^VM, name: string) {
 vm_allocate_static_storage :: proc(vm: ^VM, size: int) -> int {
     // todo(josh): make sure that the stack never writes to the place it starts at
     offset := vm.persistent_storage_watermark;
-    offset = align_forward_int(offset, size_of(rawptr)*2);
-    vm.persistent_storage_watermark += size;
+    offset = align_forward_int(offset, size_of(rawptr)*2); // todo(josh): real alignment
+    vm.persistent_storage_watermark = offset + size;
     return offset;
 }
 
@@ -339,10 +347,10 @@ execute_vm :: proc(vm: ^VM) {
     vm.memory[global_storage_start_index] = 149;
 
     for instruction, idx in vm.instructions {
-        if cast(u64)idx in vm.label_mapping_from_ip {
-            fmt.printf("%s:\n", vm.label_mapping_from_ip[cast(u64)idx]);
-        }
-        fmt.println("    ", vm.instructions[idx]);
+        // if cast(u64)idx in vm.label_mapping_from_ip {
+        //     fmt.printf("%s:\n", vm.label_mapping_from_ip[cast(u64)idx]);
+        // }
+        // fmt.println("    ", vm.instructions[idx]);
 
         #partial
         switch kind in instruction {
@@ -413,6 +421,7 @@ execute_vm :: proc(vm: ^VM) {
 
             case EXIT: break instruction_loop;
             case TRAP: fmt.println("Crash!!!"); break instruction_loop;
+            case PRINT_INT: fmt.println(transmute(i64)vm.registers[kind.p1]);
 
             case PRINT_REG: fmt.println("REGISTER", kind.p1, "=", vm.registers[kind.p1]);
             case: panic(tprint(kind));

@@ -1,6 +1,7 @@
 package main
 
 import "core:fmt"
+import "core:mem"
 
 type_i8: ^Type;
 type_i16: ^Type;
@@ -19,8 +20,6 @@ type_byte: ^Type;
 type_int: ^Type;
 type_uint: ^Type;
 type_float: ^Type;
-
-type_type: ^Type;
 
 type_bool: ^Type;
 type_string: ^Type;
@@ -55,7 +54,6 @@ init_types :: proc() {
 
     // "special" types
     type_bool = TYPE(make_type(Type_Primitive{}, 4)); register_declaration(global_scope, "bool", Decl_Type{type_bool});
-    type_type = TYPE(make_type(Type_Primitive{}, 0)); register_declaration(global_scope, "type", Decl_Type{type_type});
     type_string = TYPE(make_type_struct([]Field{{"data", TYPE(get_or_make_type_ptr_to(type_byte))}, {"length", type_int}})); register_declaration(global_scope, "string", Decl_Type{type_string});
     type_rawptr = TYPE(make_type(Type_Ptr{nil}, 8)); register_declaration(global_scope, "rawptr", Decl_Type{type_rawptr});
 }
@@ -66,22 +64,51 @@ TYPE :: proc(k: ^$T) -> ^Type {
     return t;
 }
 
-make_type :: proc(kind: $T, size: int) -> ^T {
+make_type :: proc(kind: $T, size: int, align := -1, loc := #caller_location) -> ^T {
+    assert(size > 0);
+
+    align := align;
+
+    // note(josh): this won't handle every case in the universe, but it is plenty good enough
+    if align == -1 do align = next_power_of_two(size);
+
     t := new(Type);
     t.kind = kind;
-    t.size = size;
+
+    // todo(josh): This means that a string, for example, even though it has a "true" size of 12,
+    // will have an actual size of 16. This automatically makes the type work for arrays, but it
+    // will result is extra padding if you have a thing of this type in a struct
+    // For more information, watch May 4th, 2020 stream, 3 hours 34 minutes.
+    t.size = mem.align_forward_int(size, align);
+    assert(t.size % align == 0);
+    t.align = align;
     t.magic = TYPE_MAGIC;
     append(&all_types, t);
+
     return cast(^T)t;
 }
 
-make_type_struct :: proc(fields: []Field) -> ^Type_Struct {
-    // todo(josh): account for padding/alignment
-
+make_type_struct :: proc(fields: []Field, loc := #caller_location) -> ^Type_Struct {
     size := 0;
-    for field in fields do size += field.type.size;
-    assert(size != 0);
-    return make_type(Type_Struct{fields}, size);
+    largest_alignment := 1;
+    for field, idx in fields {
+        next_alignment := -1;
+        if idx < len(fields)-1 {
+            next := &fields[idx+1];
+            next_alignment = next.type.align;
+        }
+
+        size_delta := field.type.size;
+        if next_alignment != -1 {
+            // todo(josh): do we need %% here or just %
+            size_delta += (next_alignment - field.type.size) %% next_alignment;
+        }
+        size += size_delta;
+        largest_alignment = max(largest_alignment, field.type.align);
+    }
+    if size == 0 do size = 1;
+    // todo(josh): pad the end of the struct for arrays
+    return make_type(Type_Struct{fields}, size, largest_alignment, loc);
 }
 
 make_type_proc :: proc(param_types: []^Type, return_type: ^Type) -> ^Type_Proc {
@@ -775,7 +802,8 @@ Type :: struct {
         Type_Array,
         Type_Proc,
     },
-    size: int,
+    size:  int,
+    align: int,
     magic: int,
 }
 
@@ -807,4 +835,20 @@ Type_Array :: struct {
 Type_Proc :: struct {
     param_types: []^Type,
     return_type: ^Type,
+}
+
+
+
+next_power_of_two :: proc(x: int) -> int {
+    k := x -1;
+    when size_of(int) == 8 {
+        k = k | (k >> 32);
+    }
+    k = k | (k >> 16);
+    k = k | (k >> 8);
+    k = k | (k >> 4);
+    k = k | (k >> 2);
+    k = k | (k >> 1);
+    k += 1 + int(x <= 0);
+    return k;
 }
