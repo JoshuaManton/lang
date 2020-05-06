@@ -15,13 +15,6 @@ var aa: int;
 var bb: int;
 var cc: int;
 
-struct Foo {
-    s1: string;
-    s2: string;
-    s3: string;
-    s4: string;
-}
-
 proc factorial(n: int) : int {
     if (n == 1) {
         return 1;

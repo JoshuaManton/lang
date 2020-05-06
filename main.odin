@@ -2,13 +2,9 @@ package main
 
 import "core:fmt"
 import "core:strconv"
-import "core:strings"
 import "core:os"
 
 main :: proc() {
-    // test_vm();
-    // if true do return;
-
     if len(os.args) < 2 {
         fmt.println("Usage:\n  lang <filename>");
         return;
