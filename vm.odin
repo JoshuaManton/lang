@@ -74,6 +74,8 @@ Instruction :: union {
     STORE32,
     STORE64,
 
+    COPY,
+
     EXIT,
     TRAP,
 
@@ -200,6 +202,12 @@ STORE8  :: struct { dst, p1: Register, }
 STORE16 :: struct { dst, p1: Register, }
 STORE32 :: struct { dst, p1: Register, }
 STORE64 :: struct { dst, p1: Register, }
+
+COPY :: struct {
+    dst: Register,
+    src: Register,
+    size: Register,
+}
 
 EXIT :: struct {
 
@@ -378,6 +386,13 @@ execute_vm :: proc(vm: ^VM) {
             case STORE16: (cast(^u16)&vm.memory[vm.registers[kind.dst]])^ = cast(u16)vm.registers[kind.p1];
             case STORE32: (cast(^u32)&vm.memory[vm.registers[kind.dst]])^ = cast(u32)vm.registers[kind.p1];
             case STORE64: (cast(^u64)&vm.memory[vm.registers[kind.dst]])^ = cast(u64)vm.registers[kind.p1];
+
+            case COPY: {
+                length := vm.registers[kind.size];
+                for i in 0..<length {
+                    vm.memory[vm.registers[kind.dst]+i] = vm.memory[vm.registers[kind.src]+i];
+                }
+            }
 
             case PUSH: vm.registers[.rsp] -= 8; (cast(^u64)&vm.memory[vm.registers[.rsp]])^ = vm.registers[kind.p1];
             case POP:  vm.registers[kind.dst] = (cast(^u64)&vm.memory[vm.registers[.rsp]])^; mem.zero(&vm.memory[vm.registers[.rsp]], 8); vm.registers[.rsp] += 8;

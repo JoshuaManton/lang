@@ -419,7 +419,6 @@ c_print_typespec :: proc(typespec: ^Ast_Typespec, var_name: string) -> string {
     }
 
     unreachable();
-    return {};
 }
 
 c_print_op :: proc(sb: ^strings.Builder, op: Operator, with_spaces: bool) {

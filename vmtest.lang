@@ -1,5 +1,5 @@
 proc __trap() #foreign;
-proc __print_int(x: int) #foreign;
+proc __print_int(n: int) #foreign;
 
 proc print(n: int) {
     __print_int(n);
@@ -22,7 +22,25 @@ proc factorial(n: int) : int {
     return n * factorial(n-1);
 }
 
+struct Vector3 {
+    x: int;
+    y: int;
+    z: int;
+}
+
+proc takes_a_vector(v: Vector3) {
+    print(v.x);
+    print(v.y);
+    print(v.z);
+}
+
 proc main() {
+    var v: Vector3;
+    v.x = 1;
+    v.y = 4;
+    v.z = 9;
+    takes_a_vector(v);
+
     aa = 5;
     aa = factorial(aa);
 
@@ -33,6 +51,16 @@ proc main() {
     var x: int = factorial(10);
 
     assert(aa == 120);
+    aa += 5;
+    assert(aa == 125);
+    aa -= 3;
+    assert(aa == 122);
+    aa *= 2;
+    assert(aa == 244);
+    // todo(josh): divide
+    // aa /= 4;
+    // assert(aa == 61);
+
     assert(bb == 720);
     assert(cc == 840);
     assert(x == 3628800);

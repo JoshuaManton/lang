@@ -32,11 +32,7 @@ parse_scope :: proc(lexer: ^Lexer, push_loop_scope := false) -> ^Ast_Scope {
     if push_loop_scope do current_loop_scope = scope;
     defer if push_loop_scope do current_loop_scope = old_loop_scope;
 
-    scope.parent = current_scope;
-    old_scope := current_scope;
-
-    current_scope = scope;
-    defer current_scope = old_scope;
+    PUSH_SCOPE(scope);
 
     statements: [dynamic]^Ast_Node;
     for {
@@ -46,6 +42,17 @@ parse_scope :: proc(lexer: ^Lexer, push_loop_scope := false) -> ^Ast_Scope {
     }
     scope.nodes = statements;
     return scope;
+}
+
+@(deferred_out=pop_scope)
+PUSH_SCOPE :: proc(scope: ^Ast_Scope) -> ^Ast_Scope {
+    scope.parent = current_scope;
+    old := current_scope;
+    current_scope = scope;
+    return old;
+}
+pop_scope :: proc(old: ^Ast_Scope) {
+    current_scope = old;
 }
 
 parse_single_statement :: proc(lexer: ^Lexer) -> ^Ast_Node {
@@ -93,6 +100,7 @@ parse_single_statement :: proc(lexer: ^Lexer) -> ^Ast_Node {
                 assert(ok);
                 #partial
                 switch token.kind {
+                    // todo(josh): all the assignment variants
                     case .Assign, .Plus_Assign, .Minus_Assign, .Multiply_Assign, .Divide_Assign: {
                         lhs := root_expr;
                         get_next_token(lexer);
@@ -117,7 +125,6 @@ parse_single_statement :: proc(lexer: ^Lexer) -> ^Ast_Node {
     }
 
     unreachable();
-    return {};
 }
 
 parse_var :: proc(lexer: ^Lexer, require_semicolon: bool) -> ^Ast_Var {
@@ -209,6 +216,11 @@ parse_proc :: proc(lexer: ^Lexer) -> ^Ast_Proc {
     expect(lexer, .Proc);
     name_token := expect(lexer, .Identifier);
     procedure.name = name_token.slice;
+    register_declaration(current_scope, procedure.name, Decl_Proc{procedure});
+
+    // a procedure has it's own scope that the parameters live in, then there is another scope for the procedure block
+    procedure.proc_scope = make_node(Ast_Scope);
+    PUSH_SCOPE(procedure.proc_scope);
 
     // params
     expect(lexer, .LParen);
@@ -266,18 +278,16 @@ parse_proc :: proc(lexer: ^Lexer) -> ^Ast_Proc {
         }
     }
 
+    // body
     if semicolon, ok := peek(lexer); ok && semicolon.kind == .Semicolon {
         assert(procedure.is_foreign); // todo(josh): should this assert be here? can non-foreign procs not have bodies?
         t, _, ok := get_next_token(lexer);
     }
     else {
         assert(!procedure.is_foreign);
-        // body
         body := parse_body(lexer);
         procedure.block = body;
     }
-
-    register_declaration(current_scope, procedure.name, Decl_Proc{procedure});
 
     return procedure;
 }
@@ -294,8 +304,10 @@ parse_struct :: proc(lexer: ^Lexer) -> ^Ast_Struct {
 
     expect(lexer, .Struct);
     name_token := expect(lexer, .Identifier);
-    expect(lexer, .LCurly);
+    structure.name = name_token.slice;
+    register_declaration(current_scope, structure.name, Decl_Struct{structure});
 
+    expect(lexer, .LCurly);
     field_loop: for {
         token, ok := peek(lexer);
         assert(ok);
@@ -311,10 +323,6 @@ parse_struct :: proc(lexer: ^Lexer) -> ^Ast_Struct {
             }
         }
     }
-
-    structure.name = name_token.slice;
-
-    register_declaration(current_scope, structure.name, Decl_Struct{structure});
 
     return structure;
 }
@@ -580,7 +588,10 @@ parse_base_expr :: proc(lexer: ^Lexer) -> ^Ast_Expr {
             queue_identifier_for_resolving(ident);
         }
         case .Number: {
-            expr.kind = Expr_Number{strings.contains(token.slice, "."), strconv.parse_i64(token.slice), strconv.parse_f64(token.slice), strconv.parse_u64(token.slice)};
+            i64_val, ok1 := strconv.parse_i64(token.slice); assert(ok1);
+            f64_val, ok2 := strconv.parse_f64(token.slice); assert(ok2);
+            u64_val, ok3 := strconv.parse_u64(token.slice); assert(ok3);
+            expr.kind = Expr_Number{strings.contains(token.slice, "."), i64_val, f64_val, u64_val};
         }
         case .String: {
             str, length := unescape_string(token.slice);
@@ -674,7 +685,6 @@ binary_operator :: proc(t: Token_Kind, loc := #caller_location) -> Operator {
         case: panic(tprint("invalid binary operator: ", t, " caller: ", loc));
     }
     unreachable();
-    return {};
 }
 
 unary_operator :: proc(t: Token_Kind, loc := #caller_location) -> Operator {
@@ -686,7 +696,6 @@ unary_operator :: proc(t: Token_Kind, loc := #caller_location) -> Operator {
         case: panic(tprint("invalid unary operator: ", t, " caller: ", loc));
     }
     unreachable();
-    return {};
 }
 
 NODE_MAGIC :: 273628378;
@@ -762,6 +771,7 @@ Ast_Proc :: struct {
     name: string,
     params: []^Ast_Var,
     return_typespec: ^Ast_Typespec,
+    proc_scope: ^Ast_Scope, // note(josh): proc_scope is one scope above `block` and holds the parameters
     block: ^Ast_Scope,
     variables: [dynamic]^Ast_Var, // note(josh): contains the procedures parameters and all vars defined in the body
     type: ^Type_Proc,

@@ -22,6 +22,7 @@ type_uint: ^Type;
 type_float: ^Type;
 
 type_bool: ^Type;
+
 type_string: ^Type;
 
 type_rawptr: ^Type;
@@ -89,6 +90,7 @@ make_type :: proc(kind: $T, size: int, align := -1, loc := #caller_location) -> 
 }
 
 make_type_struct :: proc(fields: []Field, loc := #caller_location) -> ^Type_Struct {
+    offsets := make([]int, len(fields));
     size := 0;
     largest_alignment := 1;
     for field, idx in fields {
@@ -103,12 +105,14 @@ make_type_struct :: proc(fields: []Field, loc := #caller_location) -> ^Type_Stru
             // todo(josh): do we need %% here or just %
             size_delta += (next_alignment - field.type.size) %% next_alignment;
         }
+        offsets[idx] = size;
+        logf("field %, offset %", field.name, size);
         size += size_delta;
         largest_alignment = max(largest_alignment, field.type.align);
     }
     if size == 0 do size = 1;
     // todo(josh): pad the end of the struct for arrays
-    return make_type(Type_Struct{fields}, size, largest_alignment, loc);
+    return make_type(Type_Struct{fields, offsets}, size, largest_alignment, loc);
 }
 
 make_type_proc :: proc(param_types: []^Type, return_type: ^Type) -> ^Type_Proc {
@@ -732,8 +736,8 @@ typecheck_expr :: proc(expr: ^Ast_Expr, expected_type: ^Type) {
             }
         }
         case Expr_Null: {
-            unimplemented();
             expr.mode = .RValue;
+            unimplemented();
         }
         case Expr_True:  expr.type = type_bool; expr.mode = .RValue; expr.constant_value = true;
         case Expr_False: expr.type = type_bool; expr.mode = .RValue; expr.constant_value = false;
@@ -764,8 +768,8 @@ get_type_through_declaration :: proc(decl: ^Declaration) -> ^Type {
         case Decl_Struct: return TYPE(decl.structure.type);
         case: panic(tprint(decl));
     }
+
     unreachable();
-    return {};
 }
 
 
@@ -813,6 +817,7 @@ Type_Primitive :: struct {
 
 Type_Struct :: struct {
     fields: []Field,
+    offsets: []int,
 }
 Field :: struct {
     name: string,
