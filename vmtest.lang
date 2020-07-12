@@ -28,18 +28,14 @@ struct Vector3 {
     z: int;
 }
 
-proc takes_a_vector(v: Vector3) {
-    print(v.x);
-    print(v.y);
-    print(v.z);
-}
-
 proc main() {
     var v: Vector3;
     v.x = 1;
     v.y = 4;
     v.z = 9;
-    takes_a_vector(v);
+    print(v.x);
+    print(v.y);
+    print(v.z);
 
     aa = 5;
     aa = factorial(aa);

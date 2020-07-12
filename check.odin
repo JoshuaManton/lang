@@ -16,9 +16,9 @@ type_u64: ^Type;
 type_f32: ^Type;
 type_f64: ^Type;
 
-type_byte: ^Type;
-type_int: ^Type;
-type_uint: ^Type;
+type_byte:  ^Type;
+type_int:   ^Type;
+type_uint:  ^Type;
 type_float: ^Type;
 
 type_bool: ^Type;
@@ -106,12 +106,11 @@ make_type_struct :: proc(fields: []Field, loc := #caller_location) -> ^Type_Stru
             size_delta += (next_alignment - field.type.size) %% next_alignment;
         }
         offsets[idx] = size;
-        logf("field %, offset %", field.name, size);
+        // logf("field %, offset %", field.name, size);
         size += size_delta;
         largest_alignment = max(largest_alignment, field.type.align);
     }
     if size == 0 do size = 1;
-    // todo(josh): pad the end of the struct for arrays
     return make_type(Type_Struct{fields, offsets}, size, largest_alignment, loc);
 }
 
@@ -343,8 +342,8 @@ typecheck_defer :: proc(defer_statement: ^Ast_Defer) {
 typecheck_expr :: proc(expr: ^Ast_Expr, expected_type: ^Type) {
     switch kind in expr.kind {
         case Expr_Binary: {
-            typecheck_expr(kind.lhs, nil);
-            typecheck_expr(kind.rhs, nil);
+            typecheck_expr(kind.lhs, nil); // todo(josh): should we pass the expected_type through here? I think so.
+            typecheck_expr(kind.rhs, nil); // todo(josh): should we pass the expected_type through here? I think so.
             assert(kind.lhs.mode != .No_Value);
             assert(kind.rhs.mode != .No_Value);
             lhs_type := kind.lhs.type;
@@ -488,7 +487,6 @@ typecheck_expr :: proc(expr: ^Ast_Expr, expected_type: ^Type) {
                 }
                 case .Less: {
                     expr.type = type_bool;
-
                     if kind.lhs.constant_value != nil && kind.rhs.constant_value != nil {
                         switch val in kind.lhs.constant_value {
                             case i64:    expr.constant_value = val < kind.rhs.constant_value.(i64);
@@ -555,7 +553,6 @@ typecheck_expr :: proc(expr: ^Ast_Expr, expected_type: ^Type) {
                 }
                 case .Not: panic("no unary ops here");
                 case .Bit_Not: panic("no unary here");
-
                 case: unimplemented(fmt.tprint(kind.op));
             }
 
@@ -583,7 +580,7 @@ typecheck_expr :: proc(expr: ^Ast_Expr, expected_type: ^Type) {
 
             typecheck_typespec(kind.typespec);
             assert(kind.typespec.type != nil);
-            typecheck_expr(kind.rhs, nil); // todo(josh): should we pass an expected type here?
+            typecheck_expr(kind.rhs, nil);
             assert(kind.rhs.type != nil);
             if is_pointer_type(kind.typespec.type) && is_pointer_type(kind.rhs.type) {
             }
@@ -758,18 +755,6 @@ typecheck_expr :: proc(expr: ^Ast_Expr, expected_type: ^Type) {
         fmt.println(expected_type);
         panic("expr.type didn't match expected_type:");
     }
-}
-
-get_type_through_declaration :: proc(decl: ^Declaration) -> ^Type {
-    switch decl in decl.kind {
-        case Decl_Type:   return decl.type;
-        case Decl_Var:    return decl.var.type;
-        case Decl_Proc:   return TYPE(decl.procedure.type);
-        case Decl_Struct: return TYPE(decl.structure.type);
-        case: panic(tprint(decl));
-    }
-
-    unreachable();
 }
 
 

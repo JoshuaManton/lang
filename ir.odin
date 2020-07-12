@@ -9,7 +9,6 @@ import "shared:wb/logging"
 // todo(josh): get rid of all these casts!!!!
 // todo(josh): fix #includes
 // todo(josh): error on usage before declared in scope
-// todo(josh): parameters are scoped to the scope that the procedure is in :grimacing: :grimacing: :grimacing:
 
 IR_Result :: struct {
     procedures: [dynamic]^IR_Proc,
@@ -160,6 +159,7 @@ gen_ir_proc :: proc(ir: ^IR_Result, ast_procedure: ^Ast_Proc) -> ^IR_Proc {
     assert(ast_procedure.name != "");
     ir_procedure.name = ast_procedure.name;
 
+    // note(josh): we only do 4 registers for now
     append(&ir_procedure.register_freelist, 3);
     append(&ir_procedure.register_freelist, 2);
     append(&ir_procedure.register_freelist, 1);
