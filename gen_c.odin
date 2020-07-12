@@ -68,7 +68,7 @@ void print_float(float f) {
 gen_c :: proc() -> string {
     sb: strings.Builder;
 
-    sbprint(&sb, C_PREAMBLE);
+    print_to_buf(&sb, C_PREAMBLE);
 
     c_print_scope(&sb, global_scope, false);
 
@@ -79,7 +79,7 @@ c_indent_level: int;
 
 indent :: proc(sb: ^strings.Builder) {
     for i in 0..<c_indent_level {
-        sbprint(sb, "    ");
+        print_to_buf(sb, "    ");
     }
 }
 
@@ -89,7 +89,7 @@ c_print_file :: proc(sb: ^strings.Builder, file: ^Ast_File) {
 
 c_print_scope :: proc(sb: ^strings.Builder, scope: ^Ast_Scope, do_curlies: bool) {
     if do_curlies {
-        sbprint(sb, "{\n");
+        print_to_buf(sb, "{\n");
         c_indent_level += 1;
     }
     for node in scope.nodes {
@@ -112,7 +112,7 @@ c_print_scope :: proc(sb: ^strings.Builder, scope: ^Ast_Scope, do_curlies: bool)
     if do_curlies {
         c_indent_level -= 1;
         indent(sb);
-        sbprint(sb, "}\n");
+        print_to_buf(sb, "}\n");
     }
 }
 
@@ -145,15 +145,14 @@ c_print_node :: proc(sb: ^strings.Builder, node: ^Ast_Node, semicolon_and_newlin
         case Ast_While:      c_print_while (sb, &kind);
         case Ast_For:        c_print_for   (sb, &kind);
         case Ast_Assign:     c_print_assign(sb, &kind, semicolon_and_newline);
-        case Ast_Identifier: sbprint(sb, kind.name);
-        case Ast_Continue:   emit_defers_from_scope_to_scope(sb, node.enclosing_scope, kind.scope_to_continue, false); indent(sb); sbprint(sb, "continue;\n");
-        case Ast_Break:      emit_defers_from_scope_to_scope(sb, node.enclosing_scope, kind.scope_to_break, false);    indent(sb); sbprint(sb, "break;\n");
+        case Ast_Identifier: print_to_buf(sb, kind.name);
+        case Ast_Continue:   emit_defers_from_scope_to_scope(sb, node.enclosing_scope, kind.scope_to_continue, false); indent(sb); print_to_buf(sb, "continue;\n");
+        case Ast_Break:      emit_defers_from_scope_to_scope(sb, node.enclosing_scope, kind.scope_to_break, false);    indent(sb); print_to_buf(sb, "break;\n");
         case Ast_Defer:      panic("shouldn't have defer here");
-        case Ast_Typespec:   panic("shouldn't have typespec here");
         case Ast_Expr:       panic("shouldn't get in here with an Ast_Expr, only Ast_Expr_Statement");
         case Ast_Expr_Statement: {
             c_print_expr(sb, kind.expr);
-            if semicolon_and_newline do sbprint(sb, ";\n");
+            if semicolon_and_newline do print_to_buf(sb, ";\n");
         }
         case: panic(tprint(kind));
     }
@@ -164,17 +163,17 @@ c_print_var :: proc(sb: ^strings.Builder, var: ^Ast_Var, semicolon_and_newline: 
         return;
     }
 
-    sbprint(sb, c_print_typespec(var.typespec, var.name));
+    print_to_buf(sb, c_print_typespec(var.typespec, var.name));
     if var.expr != nil {
-        sbprint(sb, " = ");
+        print_to_buf(sb, " = ");
         c_print_expr(sb, var.expr);
     }
     else {
         if zero_initialize {
-            sbprint(sb, " = {0}");
+            print_to_buf(sb, " = {0}");
         }
     }
-    if semicolon_and_newline do sbprint(sb, ";\n");
+    if semicolon_and_newline do print_to_buf(sb, ";\n");
 }
 
 c_print_proc :: proc(sb: ^strings.Builder, procedure: ^Ast_Proc) {
@@ -187,36 +186,36 @@ c_print_proc :: proc(sb: ^strings.Builder, procedure: ^Ast_Proc) {
         }
     }
 
-    sbprint(sb, c_print_typespec(procedure.return_typespec, procedure.name));
-    sbprint(sb, "(");
+    print_to_buf(sb, c_print_typespec(procedure.return_typespec, procedure.name));
+    print_to_buf(sb, "(");
     comma := "";
     for param in procedure.params {
-        sbprint(sb, comma);
+        print_to_buf(sb, comma);
         comma = ", ";
         c_print_var(sb, param, false, false);
     }
-    sbprint(sb, ") ");
+    print_to_buf(sb, ") ");
     c_print_scope(sb, procedure.block, true);
-    sbprint(sb, "\n");
+    print_to_buf(sb, "\n");
 }
 
 c_print_return :: proc(sb: ^strings.Builder, return_statement: ^Ast_Return) {
     if return_statement.expr != nil {
-        sbprint(sb, c_print_typespec(return_statement.matching_proc.return_typespec, aprint("__temp_", NODE(return_statement).s)), " = ");
+        print_to_buf(sb, c_print_typespec(return_statement.matching_proc.return_typespec, aprint("__temp_", NODE(return_statement).s)), " = ");
         c_print_expr(sb, return_statement.expr);
-        sbprint(sb, ";\n");
+        print_to_buf(sb, ";\n");
     }
     emit_defers_from_scope_to_scope(sb, NODE(return_statement).enclosing_scope, return_statement.matching_proc.block, false);
     indent(sb);
-    sbprint(sb, "return");
+    print_to_buf(sb, "return");
     if return_statement.expr != nil {
-        sbprint(sb, " __temp_", NODE(return_statement).s);
+        print_to_buf(sb, " __temp_", NODE(return_statement).s);
     }
-    sbprint(sb, ";\n");
+    print_to_buf(sb, ";\n");
 }
 
 c_print_struct :: proc(sb: ^strings.Builder, structure: ^Ast_Struct) {
-    sbprint(sb, "typedef struct {\n");
+    print_to_buf(sb, "typedef struct {\n");
     c_indent_level += 1;
     for field in structure.fields {
         indent(sb);
@@ -224,67 +223,68 @@ c_print_struct :: proc(sb: ^strings.Builder, structure: ^Ast_Struct) {
     }
     c_indent_level -= 1;
     indent(sb);
-    sbprint(sb, "} ", structure.name, ";\n\n");
+    print_to_buf(sb, "} ", structure.name, ";\n\n");
 }
 
 c_print_if :: proc(sb: ^strings.Builder, if_statement: ^Ast_If) {
-    sbprint(sb, "if (");
+    print_to_buf(sb, "if (");
     c_print_expr(sb, if_statement.condition);
-    sbprint(sb, ") ");
+    print_to_buf(sb, ") ");
     c_print_scope(sb, if_statement.body, true);
 
     if if_statement.else_stmt != nil {
         indent(sb);
-        sbprint(sb, "else ");
+        print_to_buf(sb, "else ");
         c_print_node(sb, if_statement.else_stmt);
-        sbprint(sb, "\n"); // note(josh): this causes extra newlines to happen sometimes
+        print_to_buf(sb, "\n"); // note(josh): this causes extra newlines to happen sometimes
     }
     else {
-        sbprint(sb, "\n");
+        print_to_buf(sb, "\n");
     }
 }
 
 c_print_while :: proc(sb: ^strings.Builder, while_loop: ^Ast_While) {
-    sbprint(sb, "while (");
+    print_to_buf(sb, "while (");
     c_print_expr(sb, while_loop.condition);
-    sbprint(sb, ") ");
+    print_to_buf(sb, ") ");
     c_print_scope(sb, while_loop.body, true);
-    sbprint(sb, "\n");
+    print_to_buf(sb, "\n");
 }
 
 c_print_for :: proc(sb: ^strings.Builder, for_loop: ^Ast_For) {
-    sbprint(sb, "for (");
+    print_to_buf(sb, "for (");
     c_print_node(sb, for_loop.pre_statement, false);
-    sbprint(sb, "; ");
+    print_to_buf(sb, "; ");
     c_print_expr(sb, for_loop.condition);
-    sbprint(sb, "; ");
+    print_to_buf(sb, "; ");
     c_print_node(sb, for_loop.post_statement, false);
-    sbprint(sb, ") ");
+    print_to_buf(sb, ") ");
     c_print_scope(sb, for_loop.body, true);
-    sbprint(sb, "\n");
+    print_to_buf(sb, "\n");
 }
 
 c_print_assign :: proc(sb: ^strings.Builder, assign: ^Ast_Assign, semicolon_and_newline: bool) {
     c_print_expr(sb, assign.lhs);
     #partial
     switch assign.op {
-        case .Assign:          sbprint(sb, " = ");
-        case .Plus_Assign:     sbprint(sb, " += ");
-        case .Minus_Assign:    sbprint(sb, " -= ");
-        case .Multiply_Assign: sbprint(sb, " *= ");
-        case .Divide_Assign:   sbprint(sb, " /= ");
+        case .Assign:          print_to_buf(sb, " = ");
+        case .Plus_Assign:     print_to_buf(sb, " += ");
+        case .Minus_Assign:    print_to_buf(sb, " -= ");
+        case .Multiply_Assign: print_to_buf(sb, " *= ");
+        case .Divide_Assign:   print_to_buf(sb, " /= ");
         case: panic(tprint(assign.op));
     }
     c_print_expr(sb, assign.rhs);
-    if semicolon_and_newline do sbprint(sb, ";\n");
+    if semicolon_and_newline do print_to_buf(sb, ";\n");
 }
 
 c_print_expr :: proc(sb: ^strings.Builder, expr: ^Ast_Expr) {
     if expr.constant_value != nil {
         switch kind in expr.constant_value {
-            case i64:    sbprint(sb, kind); return;
-            case f64:    sbprint(sb, kind); return;
-            case bool:   sbprint(sb, kind); return;
+            case i64:    print_to_buf(sb, kind); return;
+            case f64:    print_to_buf(sb, kind); return;
+            case bool:   print_to_buf(sb, kind); return;
+            case TypeID: print_to_buf(sb, "/* TypeID */", kind); return;
             case string: // we still need our special string stuff
         }
     }
@@ -295,13 +295,13 @@ c_print_expr :: proc(sb: ^strings.Builder, expr: ^Ast_Expr) {
                 assert(kind.rhs.type == type_string);
                 assert(kind.op == .Equal_To || kind.op == .Not_Equal);
                 if kind.op == .Not_Equal {
-                    sbprint(sb, "!");
+                    print_to_buf(sb, "!");
                 }
-                sbprint(sb, "string_eq(");
+                print_to_buf(sb, "string_eq(");
                 c_print_expr(sb, kind.lhs);
-                sbprint(sb, ", ");
+                print_to_buf(sb, ", ");
                 c_print_expr(sb, kind.rhs);
-                sbprint(sb, ")");
+                print_to_buf(sb, ")");
             }
             else {
                 c_print_expr(sb, kind.lhs);
@@ -310,66 +310,69 @@ c_print_expr :: proc(sb: ^strings.Builder, expr: ^Ast_Expr) {
             }
         }
         case Expr_Cast: {
-            sbprint(sb, "(", c_print_typespec(kind.typespec, ""), ")");
+            print_to_buf(sb, "(", c_print_typespec(kind.typespec, ""), ")");
             c_print_expr(sb, kind.rhs);
         }
         case Expr_Selector: {
             c_print_expr(sb, kind.lhs);
-            sbprint(sb, ".");
-            sbprint(sb, kind.field);
+            print_to_buf(sb, ".");
+            print_to_buf(sb, kind.field);
         }
         case Expr_Subscript: {
             c_print_expr(sb, kind.lhs);
-            sbprint(sb, "[");
+            print_to_buf(sb, "[");
             c_print_expr(sb, kind.index);
-            sbprint(sb, "]");
+            print_to_buf(sb, "]");
         }
         case Expr_Address_Of: {
-            sbprint(sb, "&");
+            print_to_buf(sb, "&");
             c_print_expr(sb, kind.rhs);
         }
         case Expr_Dereference: {
-            sbprint(sb, "(*");
+            print_to_buf(sb, "(*");
             c_print_expr(sb, kind.lhs);
-            sbprint(sb, ")");
+            print_to_buf(sb, ")");
         }
         case Expr_Unary: {
             c_print_op(sb, kind.op, false);
             c_print_expr(sb, kind.rhs);
         }
         case Expr_Number: {
-            sbprint(sb, kind.int_value); // todo(josh): handle more numeric types
+            print_to_buf(sb, kind.int_value); // todo(josh): handle more numeric types
         }
         case Expr_String: {
-            sbprint(sb, "(String){\"", kind.str, "\", ", kind.length, "}");
+            print_to_buf(sb, "(String){\"", kind.str, "\", ", kind.length, "}");
         }
         case Expr_Identifier: {
-            sbprint(sb, kind.ident.name);
+            print_to_buf(sb, kind.ident.name);
         }
         case Expr_Call: {
             c_print_expr(sb, kind.procedure_expr);
-            sbprint(sb, "(");
+            print_to_buf(sb, "(");
             comma := "";
             for param in kind.params {
-                sbprint(sb, comma);
+                print_to_buf(sb, comma);
                 comma = ", ";
                 c_print_expr(sb, param);
             }
-            sbprint(sb, ")");
+            print_to_buf(sb, ")");
         }
-        case Expr_Null:  sbprint(sb, "NULL");
-        case Expr_True:  sbprint(sb, "true");
-        case Expr_False: sbprint(sb, "false");
+        case Expr_Null:  print_to_buf(sb, "NULL");
+        case Expr_True:  print_to_buf(sb, "true");
+        case Expr_False: print_to_buf(sb, "false");
         case Expr_Paren: {
-            sbprint(sb, "(");
+            print_to_buf(sb, "(");
             c_print_expr(sb, kind.expr);
-            sbprint(sb, ")");
+            print_to_buf(sb, ")");
+        }
+        case Expr_Typespec: {
+            panic("Should probably never get here?");
         }
         case: panic(tprint(kind));
     }
 }
 
-c_print_typespec :: proc(typespec: ^Ast_Typespec, var_name: string) -> string {
+c_print_typespec :: proc(typespec: ^Expr_Typespec, var_name: string) -> string {
     if typespec == nil {
         return aprint("void ", var_name);
     }
@@ -422,32 +425,37 @@ c_print_typespec :: proc(typespec: ^Ast_Typespec, var_name: string) -> string {
 }
 
 c_print_op :: proc(sb: ^strings.Builder, op: Operator, with_spaces: bool) {
-    if with_spaces do sbprint(sb, " ");
+    if with_spaces do print_to_buf(sb, " ");
     switch op {
-        case .Multiply:      sbprint(sb, "*");
-        case .Divide:        sbprint(sb, "/");
-        case .Mod:           sbprint(sb, "%");
-        case .Mod_Mod:       sbprint(sb, "%%");
-        case .Shift_Left:    sbprint(sb, "<<");
-        case .Shift_Right:   sbprint(sb, ">>");
-        case .Plus:          sbprint(sb, "+");
-        case .Minus:         sbprint(sb, "-");
-        case .Bit_Xor:       sbprint(sb, "^");
-        case .Bit_And:       sbprint(sb, "&");
-        case .Bit_Or:        sbprint(sb, "|");
-        case .Bit_Not:       sbprint(sb, "~");
-        case .Not:           sbprint(sb, "!");
-        case .Equal_To:      sbprint(sb, "==");
-        case .Not_Equal:     sbprint(sb, "!=");
-        case .Less:          sbprint(sb, "<");
-        case .Greater:       sbprint(sb, ">");
-        case .Less_Equal:    sbprint(sb, "<=");
-        case .Greater_Equal: sbprint(sb, ">=");
-        case .And:           sbprint(sb, "&&");
-        case .Or:            sbprint(sb, "||");
+        case .Multiply:      print_to_buf(sb, "*");
+        case .Divide:        print_to_buf(sb, "/");
+        case .Mod:           print_to_buf(sb, "%");
+        case .Mod_Mod:       print_to_buf(sb, "%%");
+        case .Shift_Left:    print_to_buf(sb, "<<");
+        case .Shift_Right:   print_to_buf(sb, ">>");
+        case .Plus:          print_to_buf(sb, "+");
+        case .Minus:         print_to_buf(sb, "-");
+        case .Bit_Xor:       print_to_buf(sb, "^");
+        case .Bit_And:       print_to_buf(sb, "&");
+        case .Bit_Or:        print_to_buf(sb, "|");
+        case .Bit_Not:       print_to_buf(sb, "~");
+        case .Not:           print_to_buf(sb, "!");
+        case .Equal_To:      print_to_buf(sb, "==");
+        case .Not_Equal:     print_to_buf(sb, "!=");
+        case .Less:          print_to_buf(sb, "<");
+        case .Greater:       print_to_buf(sb, ">");
+        case .Less_Equal:    print_to_buf(sb, "<=");
+        case .Greater_Equal: print_to_buf(sb, ">=");
+        case .And:           print_to_buf(sb, "&&");
+        case .Or:            print_to_buf(sb, "||");
     }
-    if with_spaces do sbprint(sb, " ");
+    if with_spaces do print_to_buf(sb, " ");
 }
 
-sbprint :: fmt.sbprint;
+print_to_buf :: proc(sb: ^strings.Builder, args: ..any) {
+    for arg in args {
+        fmt.sbprint(sb, arg);
+    }
+}
+
 aprint :: fmt.aprint;

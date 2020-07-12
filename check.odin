@@ -27,6 +27,8 @@ type_string: ^Type;
 
 type_rawptr: ^Type;
 
+type_typeid: ^Type;
+
 all_types: [dynamic]^Type;
 
 init_types :: proc() {
@@ -57,6 +59,7 @@ init_types :: proc() {
     type_bool = TYPE(make_type(Type_Primitive{}, 4)); register_declaration(global_scope, "bool", Decl_Type{type_bool});
     type_string = TYPE(make_type_struct([]Field{{"data", TYPE(get_or_make_type_ptr_to(type_byte))}, {"length", type_int}})); register_declaration(global_scope, "string", Decl_Type{type_string});
     type_rawptr = TYPE(make_type(Type_Ptr{nil}, 8)); register_declaration(global_scope, "rawptr", Decl_Type{type_rawptr});
+    type_typeid = TYPE(make_type_named("typeid", type_int)); register_declaration(global_scope, "typeid", Decl_Type{type_typeid});
 }
 
 TYPE :: proc(k: ^$T) -> ^Type {
@@ -84,6 +87,7 @@ make_type :: proc(kind: $T, size: int, align := -1, loc := #caller_location) -> 
     assert(t.size % align == 0);
     t.align = align;
     t.magic = TYPE_MAGIC;
+    t.id = cast(TypeID)len(all_types);
     append(&all_types, t);
 
     return cast(^T)t;
@@ -116,6 +120,10 @@ make_type_struct :: proc(fields: []Field, loc := #caller_location) -> ^Type_Stru
 
 make_type_proc :: proc(param_types: []^Type, return_type: ^Type) -> ^Type_Proc {
     return make_type(Type_Proc{param_types, return_type}, 8);
+}
+
+make_type_named :: proc(name: string, type: ^Type) -> ^Type_Named {
+    return make_type(Type_Named{name, type}, type.size);
 }
 
 get_or_make_type_ptr_to :: proc(type: ^Type) -> ^Type_Ptr {
@@ -181,8 +189,6 @@ typecheck_node :: proc(node: ^Ast_Node) {
         case Ast_Defer:          typecheck_defer(&kind);
         case Ast_Continue:       // do nothing
         case Ast_Break:          // do nothing
-
-        case Ast_Typespec: panic("no typespecs here");
         case Ast_Expr:     panic("there should be no Ast_Exprs here, only Ast_Expr_Statements");
         case: panic(tprint(node));
     }
@@ -221,7 +227,7 @@ typecheck_var :: proc(var: ^Ast_Var) {
     }
 }
 
-typecheck_typespec :: proc(typespec: ^Ast_Typespec) {
+typecheck_typespec :: proc(typespec: ^Expr_Typespec) {
     switch kind in &typespec.kind {
         case Typespec_Identifier: {
             assert(kind.ident != nil);
@@ -257,6 +263,10 @@ typecheck_typespec :: proc(typespec: ^Ast_Typespec) {
         case: panic(tprint(typespec));
     }
     assert(typespec.type != nil);
+    expr := EXPR(typespec);
+    expr.mode = .Constant;
+    expr.constant_value = typespec.type.id;
+    // expr.type = type_typeid;
 }
 
 typecheck_proc :: proc(procedure: ^Ast_Proc) {
@@ -340,7 +350,7 @@ typecheck_defer :: proc(defer_statement: ^Ast_Defer) {
 }
 
 typecheck_expr :: proc(expr: ^Ast_Expr, expected_type: ^Type) {
-    switch kind in expr.kind {
+    switch kind in &expr.kind {
         case Expr_Binary: {
             typecheck_expr(kind.lhs, nil); // todo(josh): should we pass the expected_type through here? I think so.
             typecheck_expr(kind.rhs, nil); // todo(josh): should we pass the expected_type through here? I think so.
@@ -360,6 +370,7 @@ typecheck_expr :: proc(expr: ^Ast_Expr, expected_type: ^Type) {
                             case f64:    expr.constant_value = val * kind.rhs.constant_value.(f64);
                             case string: panic("wat");
                             case bool:   panic("wat");
+                            case TypeID: panic("wat");
                         }
                     }
                 }
@@ -371,6 +382,7 @@ typecheck_expr :: proc(expr: ^Ast_Expr, expected_type: ^Type) {
                             case f64:    expr.constant_value = val / kind.rhs.constant_value.(f64);
                             case string: panic("wat");
                             case bool:   panic("wat");
+                            case TypeID: panic("wat");
                         }
                     }
                 }
@@ -382,6 +394,7 @@ typecheck_expr :: proc(expr: ^Ast_Expr, expected_type: ^Type) {
                             case f64:    panic("wat");
                             case string: panic("wat");
                             case bool:   panic("wat");
+                            case TypeID: panic("wat");
                         }
                     }
                 }
@@ -393,6 +406,7 @@ typecheck_expr :: proc(expr: ^Ast_Expr, expected_type: ^Type) {
                             case f64:    panic("wat");
                             case string: panic("wat");
                             case bool:   panic("wat");
+                            case TypeID: panic("wat");
                         }
                     }
                 }
@@ -416,6 +430,7 @@ typecheck_expr :: proc(expr: ^Ast_Expr, expected_type: ^Type) {
                             case f64:    expr.constant_value = val + kind.rhs.constant_value.(f64);
                             case string: panic("wat");
                             case bool:   panic("wat");
+                            case TypeID: panic("wat");
                         }
                     }
                 }
@@ -427,6 +442,7 @@ typecheck_expr :: proc(expr: ^Ast_Expr, expected_type: ^Type) {
                             case f64:    expr.constant_value = val - kind.rhs.constant_value.(f64);
                             case string: panic("wat");
                             case bool:   panic("wat");
+                            case TypeID: panic("wat");
                         }
                     }
                 }
@@ -438,6 +454,7 @@ typecheck_expr :: proc(expr: ^Ast_Expr, expected_type: ^Type) {
                             case f64:    panic("wat");
                             case string: panic("wat");
                             case bool:   panic("wat");
+                            case TypeID: panic("wat");
                         }
                     }
                 }
@@ -449,6 +466,7 @@ typecheck_expr :: proc(expr: ^Ast_Expr, expected_type: ^Type) {
                             case f64:    panic("wat");
                             case string: panic("wat");
                             case bool:   panic("wat");
+                            case TypeID: panic("wat");
                         }
                     }
                 }
@@ -460,6 +478,7 @@ typecheck_expr :: proc(expr: ^Ast_Expr, expected_type: ^Type) {
                             case f64:    panic("wat");
                             case string: panic("wat");
                             case bool:   panic("wat");
+                            case TypeID: panic("wat");
                         }
                     }
                 }
@@ -471,6 +490,7 @@ typecheck_expr :: proc(expr: ^Ast_Expr, expected_type: ^Type) {
                             case f64:    expr.constant_value = val == kind.rhs.constant_value.(f64);
                             case string: expr.constant_value = val == kind.rhs.constant_value.(string);
                             case bool:   expr.constant_value = val == kind.rhs.constant_value.(bool);
+                            case TypeID: expr.constant_value = val == kind.rhs.constant_value.(TypeID);
                         }
                     }
                 }
@@ -482,6 +502,7 @@ typecheck_expr :: proc(expr: ^Ast_Expr, expected_type: ^Type) {
                             case f64:    expr.constant_value = val != kind.rhs.constant_value.(f64);
                             case string: expr.constant_value = val != kind.rhs.constant_value.(string);
                             case bool:   expr.constant_value = val != kind.rhs.constant_value.(bool);
+                            case TypeID: expr.constant_value = val != kind.rhs.constant_value.(TypeID);
                         }
                     }
                 }
@@ -493,6 +514,7 @@ typecheck_expr :: proc(expr: ^Ast_Expr, expected_type: ^Type) {
                             case f64:    expr.constant_value = val < kind.rhs.constant_value.(f64);
                             case string: panic("wat");
                             case bool:   panic("wat");
+                            case TypeID: panic("wat");
                         }
                     }
                 }
@@ -504,6 +526,7 @@ typecheck_expr :: proc(expr: ^Ast_Expr, expected_type: ^Type) {
                             case f64:    expr.constant_value = val > kind.rhs.constant_value.(f64);
                             case string: panic("wat");
                             case bool:   panic("wat");
+                            case TypeID: panic("wat");
                         }
                     }
                 }
@@ -515,6 +538,7 @@ typecheck_expr :: proc(expr: ^Ast_Expr, expected_type: ^Type) {
                             case f64:    expr.constant_value = val <= kind.rhs.constant_value.(f64);
                             case string: panic("wat");
                             case bool:   panic("wat");
+                            case TypeID: panic("wat");
                         }
                     }
                 }
@@ -526,6 +550,7 @@ typecheck_expr :: proc(expr: ^Ast_Expr, expected_type: ^Type) {
                             case f64:    expr.constant_value = val >= kind.rhs.constant_value.(f64);
                             case string: panic("wat");
                             case bool:   panic("wat");
+                            case TypeID: panic("wat");
                         }
                     }
                 }
@@ -537,6 +562,7 @@ typecheck_expr :: proc(expr: ^Ast_Expr, expected_type: ^Type) {
                             case f64:    panic("wat");
                             case string: panic("wat");
                             case bool:   expr.constant_value = val && kind.rhs.constant_value.(bool);
+                            case TypeID: panic("wat");
                         }
                     }
                 }
@@ -548,6 +574,7 @@ typecheck_expr :: proc(expr: ^Ast_Expr, expected_type: ^Type) {
                             case f64:    panic("wat");
                             case string: panic("wat");
                             case bool:   expr.constant_value = val || kind.rhs.constant_value.(bool);
+                            case TypeID: panic("wat");
                         }
                     }
                 }
@@ -556,7 +583,13 @@ typecheck_expr :: proc(expr: ^Ast_Expr, expected_type: ^Type) {
                 case: unimplemented(fmt.tprint(kind.op));
             }
 
-            expr.mode = .RValue;
+            if kind.lhs.constant_value != nil && kind.rhs.constant_value != nil {
+                assert(expr.constant_value != nil);
+                expr.mode = .Constant;
+            }
+            else {
+                expr.mode = .RValue;
+            }
         }
         case Expr_Address_Of: {
             typecheck_expr(kind.rhs, nil); // todo(josh): should we pass an expected type here?
@@ -628,12 +661,20 @@ typecheck_expr :: proc(expr: ^Ast_Expr, expected_type: ^Type) {
                             case f64:    panic("wat");
                             case string: panic("wat");
                             case bool:   panic("wat");
+                            case TypeID: panic("wat");
                         }
                     }
                 }
                 case: unimplemented(fmt.tprint(kind.op));
             }
-            expr.mode = .RValue;
+
+            if kind.rhs.constant_value != nil {
+                assert(expr.constant_value != nil);
+                expr.mode = .Constant;
+            }
+            else {
+                expr.mode = .RValue;
+            }
         }
         case Expr_Number: {
             if expected_type != nil {
@@ -655,7 +696,8 @@ typecheck_expr :: proc(expr: ^Ast_Expr, expected_type: ^Type) {
                     expr.constant_value = cast(i64)kind.int_value;
                 }
             }
-            expr.mode = .RValue;
+            assert(expr.constant_value != nil);
+            expr.mode = .Constant;
         }
         case Expr_Selector: {
             typecheck_expr(kind.lhs, nil); // todo(josh): should we pass an expected type here?
@@ -691,7 +733,7 @@ typecheck_expr :: proc(expr: ^Ast_Expr, expected_type: ^Type) {
         }
         case Expr_String: {
             expr.type = type_string;
-            expr.mode = .RValue;
+            expr.mode = .Constant;
             expr.constant_value = kind.str;
         }
         case Expr_Call: {
@@ -722,22 +764,28 @@ typecheck_expr :: proc(expr: ^Ast_Expr, expected_type: ^Type) {
             assert(kind.ident.type != nil);
             expr.type = kind.ident.type;
             expr.mode = .LValue;
+
+            // note(josh): this switch will stomp on the above `expr.mode = .LValue;`
             #partial
             switch decl in kind.ident.resolved_declaration.kind {
                 case Decl_Var: {
                     if decl.var.is_const {
                         assert(decl.var.constant_value != nil);
                         expr.constant_value = decl.var.constant_value;
+                        expr.mode = .Constant;
                     }
                 }
             }
         }
+        case Expr_Typespec: {
+            typecheck_typespec(&kind);
+        }
         case Expr_Null: {
-            expr.mode = .RValue;
+            expr.mode = .Constant;
             unimplemented();
         }
-        case Expr_True:  expr.type = type_bool; expr.mode = .RValue; expr.constant_value = true;
-        case Expr_False: expr.type = type_bool; expr.mode = .RValue; expr.constant_value = false;
+        case Expr_True:  expr.type = type_bool; expr.mode = .Constant; expr.constant_value = true;
+        case Expr_False: expr.type = type_bool; expr.mode = .Constant; expr.constant_value = false;
         case Expr_Paren: {
             typecheck_expr(kind.expr, expected_type);
             assert(kind.expr != nil);
@@ -785,12 +833,14 @@ TYPE_MAGIC :: 789162976;
 Type :: struct {
     kind: union {
         Type_Primitive,
+        Type_Named,
         Type_Struct,
         Type_Ptr,
         Type_Slice,
         Type_Array,
         Type_Proc,
     },
+    id:    TypeID,
     size:  int,
     align: int,
     magic: int,
@@ -798,6 +848,11 @@ Type :: struct {
 
 Type_Primitive :: struct {
 
+}
+
+Type_Named :: struct {
+    name: string,
+    base: ^Type,
 }
 
 Type_Struct :: struct {

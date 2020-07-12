@@ -40,7 +40,10 @@ proc main() {
     aa = 5;
     aa = factorial(aa);
 
-    bb = factorial(6);
+    const Six: int = 6;
+    bb = factorial(Six);
+
+    // const My_Int: typeid = int;
 
     cc = aa + bb;
 

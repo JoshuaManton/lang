@@ -170,10 +170,10 @@ parse_var :: proc(lexer: ^Lexer, require_semicolon: bool) -> ^Ast_Var {
     return var;
 }
 
-parse_typespec :: proc(lexer: ^Lexer) -> ^Ast_Typespec {
+parse_typespec :: proc(lexer: ^Lexer) -> ^Expr_Typespec {
     token, _, ok := get_next_token(lexer);
     assert(ok);
-    typespec := make_node(Ast_Typespec);
+    typespec: Expr_Typespec;
     #partial
     switch token.kind {
         case .Identifier: {
@@ -202,7 +202,10 @@ parse_typespec :: proc(lexer: ^Lexer) -> ^Ast_Typespec {
         case: unimplemented(fmt.tprint(token.kind));
     }
     assert(typespec.kind != nil);
-    return typespec;
+
+    expr := make_node(Ast_Expr);
+    expr.kind = typespec;
+    return &expr.kind.(Expr_Typespec);
 }
 
 parse_proc :: proc(lexer: ^Lexer) -> ^Ast_Proc {
@@ -249,7 +252,7 @@ parse_proc :: proc(lexer: ^Lexer) -> ^Ast_Proc {
     procedure.params = params[:];
 
     // return value
-    return_typespec: ^Ast_Typespec;
+    return_typespec: ^Expr_Typespec;
     {
         token, ok := peek(lexer);
         assert(ok);
@@ -711,7 +714,6 @@ Ast_Node :: struct {
         Ast_For,
         Ast_Expr,
         Ast_Expr_Statement,
-        Ast_Typespec,
         Ast_Identifier,
         Ast_Assign,
         Ast_Return,
@@ -734,6 +736,10 @@ make_node :: proc($T: typeid) -> ^T {
     node.s = last_node_serial;
     node.enclosing_scope = current_scope;
     node.enclosing_procedure = current_procedure;
+    when T == Ast_Expr {
+        expr := &node.kind.(Ast_Expr);
+        expr.magic = EXPR_MAGIC;
+    }
     return cast(^T)node;
 }
 
@@ -758,7 +764,7 @@ Ast_Scope :: struct {
 
 Ast_Var :: struct {
     name: string,
-    typespec: ^Ast_Typespec,
+    typespec: ^Expr_Typespec,
     expr: ^Ast_Expr,
     type: ^Type,
     is_const: bool,
@@ -770,7 +776,7 @@ Ast_Var :: struct {
 Ast_Proc :: struct {
     name: string,
     params: []^Ast_Var,
-    return_typespec: ^Ast_Typespec,
+    return_typespec: ^Expr_Typespec,
     proc_scope: ^Ast_Scope, // note(josh): proc_scope is one scope above `block` and holds the parameters
     block: ^Ast_Scope,
     variables: [dynamic]^Ast_Var, // note(josh): contains the procedures parameters and all vars defined in the body
@@ -828,6 +834,17 @@ Ast_Expr_Statement :: struct {
     expr: ^Ast_Expr,
 }
 
+
+
+Addressing_Mode :: enum {
+    Invalid,
+    No_Value,
+    LValue,
+    RValue,
+    Constant,
+}
+
+EXPR_MAGIC :: 728376328;
 Ast_Expr :: struct {
     kind: union {
         Expr_Binary,
@@ -845,11 +862,20 @@ Ast_Expr :: struct {
         Expr_Paren,
         Expr_Address_Of,
         Expr_Dereference,
+        Expr_Typespec,
     },
+    magic: int,
     type: ^Type,
     mode: Addressing_Mode,
     constant_value: Constant_Value,
 }
+
+EXPR :: proc(k: ^$T) -> ^Ast_Expr {
+    e := cast(^Ast_Expr)k;
+    assert(e.magic == EXPR_MAGIC);
+    return e;
+}
+
 Expr_Binary :: struct {
     op: Operator,
     lhs, rhs: ^Ast_Expr,
@@ -896,18 +922,11 @@ Expr_Call :: struct {
     params: []^Ast_Expr,
 }
 Expr_Cast :: struct {
-    typespec: ^Ast_Typespec,
+    typespec: ^Expr_Typespec,
     rhs: ^Ast_Expr,
 }
 
-Addressing_Mode :: enum {
-    No_Value,
-    LValue,
-    RValue,
-}
-
-
-Ast_Typespec :: struct {
+Expr_Typespec :: struct {
     kind: union {
         Typespec_Identifier,
         Typespec_Ptr,
@@ -920,13 +939,13 @@ Typespec_Identifier :: struct {
     ident: ^Ast_Identifier,
 }
 Typespec_Ptr :: struct {
-    ptr_to: ^Ast_Typespec,
+    ptr_to: ^Expr_Typespec,
 }
 Typespec_Slice :: struct {
-    slice_of: ^Ast_Typespec,
+    slice_of: ^Expr_Typespec,
 }
 Typespec_Array :: struct {
-    array_of: ^Ast_Typespec,
+    array_of: ^Expr_Typespec,
     length: ^Ast_Expr,
 }
 
@@ -937,8 +956,9 @@ Ast_Identifier :: struct {
 }
 
 Constant_Value :: union {
-    i64, f64, string, bool,
+    i64, f64, string, bool, TypeID,
 }
+TypeID :: distinct int;
 
 Declaration :: struct {
     name: string,

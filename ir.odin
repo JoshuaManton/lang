@@ -231,7 +231,6 @@ gen_ir_statement :: proc(ir: ^IR_Result, procedure: ^IR_Proc, node: ^Ast_Node) {
         case Ast_Defer:  // skip, handled separately in gen_ir_scope()
         case Ast_Struct: // skip, no need for IR for structs
         case Ast_Expr:       panic("Shouldn't be any expressions at statement level.");
-        case Ast_Typespec:   panic("Shouldn't be any typespecs at statement level.");
         case Ast_Identifier: panic("Shouldn't be any identifiers at statement level.");
         case Ast_File: panic(tprint(stmt));
         case: panic(tprint(stmt));
@@ -358,16 +357,21 @@ get_storage_for_expr :: proc(expr: ^Ast_Expr) -> ^IR_Storage {
 }
 
 gen_ir_expr :: proc(procedure: ^IR_Proc, expr: ^Ast_Expr, is_at_statement_level := false) -> u64 {
-    switch kind in expr.kind {
-        case Expr_Number: {
-            dst := alloc_register(procedure);
-            switch expr.type {
-                case type_i64: ir_inst(procedure, IR_Move_Immediate{dst, kind.int_value});
-                case type_int: ir_inst(procedure, IR_Move_Immediate{dst, kind.int_value});
-                case: panic(tprint(expr.type));
-            }
-            return dst;
+    if expr.mode == .Constant {
+        assert(expr.constant_value != nil);
+        dst := alloc_register(procedure);
+        switch kind in expr.constant_value {
+            case i64:    ir_inst(procedure, IR_Move_Immediate{dst, kind});
+            case f64:    unimplemented();
+            case string: unimplemented();
+            case bool:   ir_inst(procedure, IR_Move_Immediate{dst, cast(i64)kind});
+            case TypeID: ir_inst(procedure, IR_Move_Immediate{dst, transmute(i64)kind});
+            case: panic("???");
         }
+        return dst;
+    }
+
+    switch kind in expr.kind {
         case Expr_Binary: {
             lhs_reg := gen_ir_expr(procedure, kind.lhs);
             defer free_register(procedure, lhs_reg);
@@ -404,8 +408,6 @@ gen_ir_expr :: proc(procedure: ^IR_Proc, expr: ^Ast_Expr, is_at_statement_level 
 
             for reg in procedure.registers_in_use {
                 append(&ir_call.registers_to_save, reg);
-                // todo(josh): why is this commented out?
-                // free_register(procedure, reg);
             }
 
             if expr.mode == .No_Value {
@@ -443,30 +445,19 @@ gen_ir_expr :: proc(procedure: ^IR_Proc, expr: ^Ast_Expr, is_at_statement_level 
             gen_ir_load(procedure, storage, dst);
             return dst;
         }
-        case Expr_String:      panic("Expr_String");
-        case Expr_Subscript:   panic("Expr_Subscript");
-        case Expr_Cast:        panic("Expr_Cast");
-        case Expr_Null: {
-            dst := alloc_register(procedure);
-            ir_inst(procedure, IR_Move_Immediate{dst, i64(0)});
-            return dst;
-        }
-        case Expr_True: {
-            dst := alloc_register(procedure);
-            ir_inst(procedure, IR_Move_Immediate{dst, i64(1)});
-            return dst;
-        }
-        case Expr_False: {
-            dst := alloc_register(procedure);
-            ir_inst(procedure, IR_Move_Immediate{dst, i64(0)});
-            return dst;
-        }
         case Expr_Paren: {
-            // todo(josh): should we pass the `is_at_statement_level` param here?
-            //             I suspect so because of the case `(some_proc());` at statement level
-            //             test this!!!
             return gen_ir_expr(procedure, kind.expr, is_at_statement_level);
         }
+
+        case Expr_Subscript: panic("Expr_Subscript");
+        case Expr_Cast:      panic("Expr_Cast");
+
+        case Expr_Number:   panic("should have been handled above in the constant check");
+        case Expr_Typespec: panic("should have been handled above in the constant check");
+        case Expr_String:   panic("should have been handled above in the constant check");
+        case Expr_Null:     panic("should have been handled above in the constant check");
+        case Expr_True:     panic("should have been handled above in the constant check");
+        case Expr_False:    panic("should have been handled above in the constant check");
         case Expr_Address_Of:  panic("Expr_Address_Of");
         case Expr_Dereference: panic("Expr_Dereference");
         case: panic(tprint(kind));
