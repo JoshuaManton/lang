@@ -309,6 +309,10 @@ c_print_expr :: proc(sb: ^strings.Builder, expr: ^Ast_Expr) {
                 c_print_expr(sb, kind.rhs);
             }
         }
+        case Expr_Size_Of: {
+            constant_size := expr.constant_value.(i64);
+            print_to_buf(sb, constant_size);
+        }
         case Expr_Cast: {
             print_to_buf(sb, "(", c_print_typespec(kind.typespec, ""), ")");
             c_print_expr(sb, kind.rhs);

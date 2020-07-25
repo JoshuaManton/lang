@@ -40,12 +40,12 @@ proc things() {
     aa = 5;
     aa = factorial(aa);
 
-    const SIX: int = 6;
+    const SIX = 6;
     bb = factorial(SIX);
 
     cc = aa + bb;
 
-    var x: int = factorial(10);
+    var x = factorial(10);
 
     assert(aa == 120);
     aa += 5;
@@ -65,15 +65,47 @@ proc things() {
     print(aa);
     print(bb);
     print(cc);
+
+    var foozlebarzle = 123;
+    print(foozlebarzle);
+    assert(foozlebarzle == 123);
+}
+
+proc int_sizes() {
+    var a: i64;
+    var b: i32;
+    var c: i16;
+    var d: i8 ;
+
+    // todo(josh): need untyped types
+    // assert(a == 123);
+    // assert(b == 123);
+    // assert(c == 123);
+    // assert(d == 123);
+
+    assert(sizeof(i64) == 8);
+    assert(sizeof(i32) == 4);
+    assert(sizeof(i16) == 2);
+    assert(sizeof(i8 ) == 1);
+
+    assert(sizeof(a) == 8);
+    assert(sizeof(b) == 4);
+    assert(sizeof(c) == 2);
+    assert(sizeof(d) == 1);
+
+    print(sizeof(^int));
+    assert(sizeof(^int) == 8);
+    print(sizeof([]int));
+    assert(sizeof([]int) == 16);
 }
 
 proc type_alias() {
-    const My_Int: typeid = int; // can we do type inference here?
+    const My_Int = int;
     var a: My_Int = 12;
     a += a + 12;
     assert(a == 36);
 
-    const My_Vec: typeid = Vector3;
+    const My_Vec = Vector3;
     var v: My_Vec;
     v.x = 1;
     v.y = 4;
@@ -83,7 +115,25 @@ proc type_alias() {
     assert(v.z == 9);
 }
 
+proc bool_stuff() {
+    var t = 1 == 1;
+    var f = 1 == 2;
+    assert(t == true);
+    assert(t);
+    assert(f == false);
+    assert(!f);
+
+    if (!t) {
+        assert(false);
+    }
+    if (f) {
+        assert(false);
+    }
+}
+
 proc main() {
     things();
+    int_sizes();
     type_alias();
+    bool_stuff();
 }

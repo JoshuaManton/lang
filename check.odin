@@ -58,9 +58,9 @@ init_types :: proc() {
     type_float = type_f32; register_declaration(global_scope, "float", Decl_Type{type_float});
 
     // "special" types
-    type_bool = TYPE(make_type(Type_Primitive{}, 4)); register_declaration(global_scope, "bool", Decl_Type{type_bool});
-    type_string = TYPE(make_type_struct([]Field{{"data", TYPE(get_or_make_type_ptr_to(type_byte))}, {"length", type_int}})); register_declaration(global_scope, "string", Decl_Type{type_string});
     type_rawptr = TYPE(make_type(Type_Ptr{nil}, 8)); register_declaration(global_scope, "rawptr", Decl_Type{type_rawptr});
+    type_bool = TYPE(make_type(Type_Primitive{}, 1)); register_declaration(global_scope, "bool", Decl_Type{type_bool});
+    type_string = TYPE(make_type_struct([]Field{{"data", TYPE(get_or_make_type_ptr_to(type_byte))}, {"length", type_int}})); register_declaration(global_scope, "string", Decl_Type{type_string});
     type_typeid = TYPE(make_type_named("typeid", type_int)); register_declaration(global_scope, "typeid", Decl_Type{type_typeid});
 }
 
@@ -137,7 +137,7 @@ get_or_make_type_ptr_to :: proc(type: ^Type) -> ^Type_Ptr {
             }
         }
     }
-    return make_type(Type_Ptr{type}, 8);
+    return make_type(Type_Ptr{type}, type_rawptr.size);
 }
 
 get_or_make_type_slice_of :: proc(type: ^Type) -> ^Type_Slice {
@@ -149,7 +149,7 @@ get_or_make_type_slice_of :: proc(type: ^Type) -> ^Type_Slice {
             }
         }
     }
-    return make_type(Type_Slice{type}, 16);
+    return make_type(Type_Slice{type}, type_rawptr.size + type_int.size);
 }
 
 get_or_make_type_array_of :: proc(type: ^Type, length: int) -> ^Type_Array {
@@ -236,6 +236,10 @@ typecheck_var :: proc(var: ^Ast_Var) {
         assert(var.expr != nil);
         assert(var.expr.constant_value != nil);
         var.constant_value = var.expr.constant_value;
+
+        if var.type == type_typeid {
+            var.is_type_alias_for = all_types[var.expr.constant_value.(TypeID)];
+        }
     }
 }
 
@@ -249,9 +253,8 @@ typecheck_typespec :: proc(typespec: ^Expr_Typespec) {
                 case Decl_Type:   typespec.type = decl.type;
                 case Decl_Struct: typespec.type = TYPE(decl.structure.type);
                 case Decl_Var: {
-                    if decl.var.is_const && decl.var.type == type_typeid {
-                        type_id := decl.var.constant_value.(TypeID);
-                        typespec.type = all_types[type_id];
+                    if decl.var.is_type_alias_for != nil {
+                        typespec.type = decl.var.is_type_alias_for;
                     }
                     else {
                         panic(fmt.tprint(decl, "used as a type when it is not a type"));
@@ -717,6 +720,39 @@ typecheck_expr :: proc(expr: ^Ast_Expr, expected_type: ^Type) {
             }
             assert(expr.constant_value != nil);
             expr.mode = .Constant;
+        }
+        case Expr_Size_Of: {
+            typecheck_expr(kind.thing_to_get_the_size_of, nil);
+            size: int;
+            #partial
+            switch size_of_kind in kind.thing_to_get_the_size_of.kind {
+                case Expr_Typespec: {
+                    size = size_of_kind.type.size;
+                }
+                case Expr_Identifier: {
+                    switch decl_kind in size_of_kind.ident.resolved_declaration.kind {
+                        case Decl_Type: size = decl_kind.type.size;
+                        case Decl_Struct: size = TYPE(decl_kind.structure.type).size;
+                        case Decl_Proc: size = type_rawptr.size;
+                        case Decl_Var: {
+                            if decl_kind.var.is_type_alias_for != nil {
+                                size = decl_kind.var.is_type_alias_for.size;
+                            }
+                            else {
+                                size = decl_kind.var.type.size;
+                            }
+                        }
+                        case: panic(tprint(size_of_kind.ident.resolved_declaration));
+                    }
+                }
+                case: {
+                    panic(tprint(kind.thing_to_get_the_size_of));
+                }
+            }
+
+            expr.type = type_int;
+            expr.mode = .Constant;
+            expr.constant_value = cast(i64)size;
         }
         case Expr_Selector: {
             typecheck_expr(kind.lhs, nil); // todo(josh): should we pass an expected type here?

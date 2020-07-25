@@ -230,6 +230,7 @@ Token_Kind :: enum {
     True,
     False,
     Cast,
+    Size_Of,
 
     Identifier,
     String,
@@ -296,6 +297,7 @@ keyword_mapping := [?]Keyword_Mapping {
     {"for",      .For},
     {"defer",    .Defer},
     {"cast",     .Cast},
+    {"sizeof",   .Size_Of},
     {"var",      .Var},
     {"const",    .Const},
     {"proc",     .Proc},

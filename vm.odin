@@ -355,10 +355,10 @@ execute_vm :: proc(vm: ^VM) {
     vm.memory[global_storage_start_index] = 149;
 
     for instruction, idx in vm.instructions {
-        // if cast(u64)idx in vm.label_mapping_from_ip {
-        //     fmt.printf("%s:\n", vm.label_mapping_from_ip[cast(u64)idx]);
-        // }
-        // fmt.println("    ", vm.instructions[idx]);
+        if cast(u64)idx in vm.label_mapping_from_ip {
+            fmt.printf("%s:\n", vm.label_mapping_from_ip[cast(u64)idx]);
+        }
+        fmt.println("    ", vm.instructions[idx]);
 
         #partial
         switch kind in instruction {

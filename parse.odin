@@ -138,18 +138,17 @@ parse_var :: proc(lexer: ^Lexer, require_semicolon: bool) -> ^Ast_Var {
     }
 
     name_token := expect(lexer, .Identifier);
-    expect(lexer, .Colon);
 
-    typespec := parse_typespec(lexer);
+    typespec: ^Expr_Typespec;
+    if _, ok := peek_kind(lexer, .Colon); ok {
+        expect(lexer, .Colon);
+        typespec = parse_typespec(lexer);
+    }
 
     expr: ^Ast_Expr;
-    {
-        assign, ok := peek(lexer);
-        assert(ok);
-        if assign.kind == .Assign {
-            get_next_token(lexer);
-            expr = parse_expr(lexer);
-        }
+    if _, ok := peek_kind(lexer, .Assign); ok {
+        get_next_token(lexer);
+        expr = parse_expr(lexer);
     }
 
     if require_semicolon {
@@ -498,13 +497,22 @@ parse_unary_expr :: proc(lexer: ^Lexer) -> ^Ast_Expr {
                 rhs := parse_unary_expr(lexer);
                 expr.kind = Expr_Cast{typespec, rhs};
             }
+            case .Size_Of: {
+                expect(lexer, .LParen);
+                thing_to_get_the_size_of := parse_expr(lexer);
+                expect(lexer, .RParen);
+                expr.kind = Expr_Size_Of{thing_to_get_the_size_of};
+            }
             case .Ampersand: {
                 rhs := parse_unary_expr(lexer);
                 expr.kind = Expr_Address_Of{rhs};
             }
-            case: {
+            case .Minus, .Plus, .Not: {
                 rhs := parse_unary_expr(lexer);
                 expr.kind = Expr_Unary{unary_operator(op.kind), rhs};
+            }
+            case: {
+                panic(tprint("Unknown unary op: ", op.kind));
             }
         }
     }
@@ -577,42 +585,48 @@ parse_postfix_expr :: proc(lexer: ^Lexer) -> ^Ast_Expr {
 }
 
 parse_base_expr :: proc(lexer: ^Lexer) -> ^Ast_Expr {
-    token, _, ok := get_next_token(lexer);
-    expr := make_node(Ast_Expr);
+    token, ok := peek(lexer);
+    assert(ok);
     #partial
     switch token.kind {
-        case .Null:  expr.kind = Expr_Null{};
-        case .True:  expr.kind = Expr_True{};
-        case .False: expr.kind = Expr_False{};
+        case .Null:  get_next_token(lexer); return EXPR(make_expr(Expr_Null{}));
+        case .True:  get_next_token(lexer); return EXPR(make_expr(Expr_True{}));
+        case .False: get_next_token(lexer); return EXPR(make_expr(Expr_False{}));
         case .Identifier: {
+            get_next_token(lexer);
             ident := make_node(Ast_Identifier);
             ident.name = token.slice;
-            expr.kind = Expr_Identifier{ident};
+            expr := make_expr(Expr_Identifier{ident});
             queue_identifier_for_resolving(ident);
+            return EXPR(expr);
         }
         case .Number: {
+            get_next_token(lexer);
             i64_val, ok1 := strconv.parse_i64(token.slice); assert(ok1);
             f64_val, ok2 := strconv.parse_f64(token.slice); assert(ok2);
             u64_val, ok3 := strconv.parse_u64(token.slice); assert(ok3);
-            expr.kind = Expr_Number{strings.contains(token.slice, "."), i64_val, f64_val, u64_val};
+            return EXPR(make_expr(Expr_Number{strings.contains(token.slice, "."), i64_val, f64_val, u64_val}));
         }
         case .String: {
+            get_next_token(lexer);
             str, length := unescape_string(token.slice);
-            expr.kind = Expr_String{str, length};
+            return EXPR(make_expr(Expr_String{str, length}));
         }
         case .LParen: {
+            get_next_token(lexer);
             nested := parse_expr(lexer);
-            expr.kind = Expr_Paren{nested};
             expect(lexer, .RParen);
+            return EXPR(make_expr(Expr_Paren{nested}));
+        }
+        case .LSquare, .Caret: {
+            return EXPR(parse_typespec(lexer)); // todo(josh): this stomps on the `expr := make_node(Ast_Expr);` above @Leak
         }
         case: {
             unimplemented(fmt.tprint(token));
         }
     }
 
-    assert(expr != nil);
-    assert(expr.kind != nil);
-    return expr;
+    unreachable();
 }
 
 unescape_string :: proc(str: string) -> (string, int) {
@@ -655,13 +669,13 @@ unescape_string :: proc(str: string) -> (string, int) {
     return escaped, length;
 }
 
-is_or_op      :: proc(lexer: ^Lexer) -> bool { token, ok := peek(lexer); assert(ok); #partial switch token.kind { case .Or:                                return true; } return false; }
-is_and_op     :: proc(lexer: ^Lexer) -> bool { token, ok := peek(lexer); assert(ok); #partial switch token.kind { case .And:                               return true; } return false; }
-is_cmp_op     :: proc(lexer: ^Lexer) -> bool { token, ok := peek(lexer); assert(ok); #partial switch token.kind { case .CMP_BEGIN...CMP_END:               return true; } return false; }
-is_add_op     :: proc(lexer: ^Lexer) -> bool { token, ok := peek(lexer); assert(ok); #partial switch token.kind { case .ADD_BEGIN...ADD_END:               return true; } return false; }
-is_mul_op     :: proc(lexer: ^Lexer) -> bool { token, ok := peek(lexer); assert(ok); #partial switch token.kind { case .MUL_BEGIN...MUL_END:               return true; } return false; }
-is_unary_op   :: proc(lexer: ^Lexer) -> bool { token, ok := peek(lexer); assert(ok); #partial switch token.kind { case .Minus, .Plus, .Ampersand, .Cast:   return true; } return false; }
-is_postfix_op :: proc(lexer: ^Lexer) -> bool { token, ok := peek(lexer); assert(ok); #partial switch token.kind { case .LParen, .LSquare, .Period, .Caret: return true; } return false; }
+is_or_op      :: proc(lexer: ^Lexer) -> bool { token, ok := peek(lexer); assert(ok); #partial switch token.kind { case .Or:                                                return true; } return false; }
+is_and_op     :: proc(lexer: ^Lexer) -> bool { token, ok := peek(lexer); assert(ok); #partial switch token.kind { case .And:                                               return true; } return false; }
+is_cmp_op     :: proc(lexer: ^Lexer) -> bool { token, ok := peek(lexer); assert(ok); #partial switch token.kind { case .CMP_BEGIN...CMP_END:                               return true; } return false; }
+is_add_op     :: proc(lexer: ^Lexer) -> bool { token, ok := peek(lexer); assert(ok); #partial switch token.kind { case .ADD_BEGIN...ADD_END:                               return true; } return false; }
+is_mul_op     :: proc(lexer: ^Lexer) -> bool { token, ok := peek(lexer); assert(ok); #partial switch token.kind { case .MUL_BEGIN...MUL_END:                               return true; } return false; }
+is_unary_op   :: proc(lexer: ^Lexer) -> bool { token, ok := peek(lexer); assert(ok); #partial switch token.kind { case .Minus, .Plus, .Ampersand, .Cast, .Size_Of, .Not:   return true; } return false; }
+is_postfix_op :: proc(lexer: ^Lexer) -> bool { token, ok := peek(lexer); assert(ok); #partial switch token.kind { case .LParen, .LSquare, .Period, .Caret:                 return true; } return false; }
 
 binary_operator :: proc(t: Token_Kind, loc := #caller_location) -> Operator {
     #partial
@@ -680,7 +694,6 @@ binary_operator :: proc(t: Token_Kind, loc := #caller_location) -> Operator {
         case .Greater:       return .Greater;
         case .Less_Equal:    return .Less_Equal;
         case .Greater_Equal: return .Greater_Equal;
-        case .Not:           return .Not;
         case .And:           return .And;
         case .Or:            return .Or;
         case .Plus:          return .Plus;
@@ -696,6 +709,7 @@ unary_operator :: proc(t: Token_Kind, loc := #caller_location) -> Operator {
         case .Tilde: return .Bit_Not;
         case .Plus:  return .Plus;
         case .Minus: return .Minus;
+        case .Not:   return .Not;
         case: panic(tprint("invalid unary operator: ", t, " caller: ", loc));
     }
     unreachable();
@@ -767,6 +781,7 @@ Ast_Var :: struct {
     typespec: ^Expr_Typespec,
     expr: ^Ast_Expr,
     type: ^Type,
+    is_type_alias_for: ^Type,
     is_const: bool,
     is_parameter: bool,
     constant_value: Constant_Value,
@@ -860,6 +875,7 @@ Ast_Expr :: struct {
         Expr_True,
         Expr_False,
         Expr_Paren,
+        Expr_Size_Of,
         Expr_Address_Of,
         Expr_Dereference,
         Expr_Typespec,
@@ -868,6 +884,12 @@ Ast_Expr :: struct {
     type: ^Type,
     mode: Addressing_Mode,
     constant_value: Constant_Value,
+}
+
+make_expr :: proc(k: $T) -> ^T {
+    e := make_node(Ast_Expr);
+    e.kind = k;
+    return &e.kind.(T);
 }
 
 EXPR :: proc(k: ^$T) -> ^Ast_Expr {
@@ -883,6 +905,9 @@ Expr_Binary :: struct {
 Expr_Unary :: struct {
     op: Operator,
     rhs: ^Ast_Expr,
+}
+Expr_Size_Of :: struct {
+    thing_to_get_the_size_of: ^Ast_Expr,
 }
 Expr_Address_Of :: struct {
     rhs: ^Ast_Expr,

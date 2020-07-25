@@ -427,17 +427,16 @@ gen_ir_expr :: proc(procedure: ^IR_Proc, expr: ^Ast_Expr, is_at_statement_level 
             }
         }
         case Expr_Unary: {
-            #partial
-            switch kind.op {
-                case .Minus: {
-                    expr_reg := gen_ir_expr(procedure, kind.rhs);
-                    defer free_register(procedure, expr_reg);
-                    dst := alloc_register(procedure);
-                    ir_inst(procedure, IR_Unary{kind.op, dst, expr_reg});
-                    return dst;
-                }
-                case: panic(tprint(kind.op));
-            }
+            expr_reg := gen_ir_expr(procedure, kind.rhs);
+            defer free_register(procedure, expr_reg);
+            dst := alloc_register(procedure);
+            ir_inst(procedure, IR_Unary{kind.op, dst, expr_reg});
+            return dst;
+        }
+        case Expr_Size_Of: {
+            dst := alloc_register(procedure);
+            ir_inst(procedure, IR_Move_Immediate{dst, expr.constant_value.(i64)});
+            return dst;
         }
         case Expr_Selector: {
             storage := get_storage_for_expr(expr);
@@ -689,6 +688,9 @@ gen_vm_block :: proc(vm: ^VM, procedure: ^IR_Proc, block: ^IR_Block) {
                 switch kind.op {
                     case .Minus: {
                         add_instruction(vm, SUB{VM_REGISTER(kind.dst), .rz, VM_REGISTER(kind.rhs)});
+                    }
+                    case .Not: {
+                        add_instruction(vm, EQ{VM_REGISTER(kind.dst), VM_REGISTER(kind.rhs), .rz});
                     }
                     case: panic(tprint(kind.op));
                 }
