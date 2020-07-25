@@ -952,7 +952,6 @@ Typespec_Array :: struct {
 Ast_Identifier :: struct {
     name: string,
     resolved_declaration: ^Declaration,
-    type: ^Type,
 }
 
 Constant_Value :: union {

@@ -28,7 +28,7 @@ struct Vector3 {
     z: int;
 }
 
-proc main() {
+proc things() {
     var v: Vector3;
     v.x = 1;
     v.y = 4;
@@ -40,10 +40,8 @@ proc main() {
     aa = 5;
     aa = factorial(aa);
 
-    const Six: int = 6;
-    bb = factorial(Six);
-
-    // const My_Int: typeid = int;
+    const SIX: int = 6;
+    bb = factorial(SIX);
 
     cc = aa + bb;
 
@@ -69,30 +67,23 @@ proc main() {
     print(cc);
 }
 
+proc type_alias() {
+    const My_Int: typeid = int; // can we do type inference here?
+    var a: My_Int = 12;
+    a += a + 12;
+    assert(a == 36);
 
+    const My_Vec: typeid = Vector3;
+    var v: My_Vec;
+    v.x = 1;
+    v.y = 4;
+    v.z = 9;
+    assert(v.x == 1);
+    assert(v.y == 4);
+    assert(v.z == 9);
+}
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+proc main() {
+    things();
+    type_alias();
+}

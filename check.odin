@@ -3,6 +3,8 @@ package main
 import "core:fmt"
 import "core:mem"
 
+// todo(josh): untyped types
+
 type_i8: ^Type;
 type_i16: ^Type;
 type_i32: ^Type;
@@ -176,7 +178,6 @@ typecheck_node :: proc(node: ^Ast_Node) {
     switch kind in &node.kind {
         case Ast_File:           typecheck_file(&kind);
         case Ast_Scope:          typecheck_scope(&kind);
-        case Ast_Identifier:     typecheck_identifier(&kind); assert(kind.type != nil);
         case Ast_Var:            typecheck_var(&kind);        assert(kind.type != nil);
         case Ast_Proc:           typecheck_proc(&kind);       assert(kind.type != nil);
         case Ast_Struct:         typecheck_struct(&kind);     assert(kind.type != nil);
@@ -187,6 +188,7 @@ typecheck_node :: proc(node: ^Ast_Node) {
         case Ast_Expr_Statement: typecheck_expr(kind.expr, nil);
         case Ast_Assign:         typecheck_assign(&kind);
         case Ast_Defer:          typecheck_defer(&kind);
+        case Ast_Identifier:     assert(kind.resolved_declaration != nil);
         case Ast_Continue:       // do nothing
         case Ast_Break:          // do nothing
         case Ast_Expr:     panic("there should be no Ast_Exprs here, only Ast_Expr_Statements");
@@ -194,6 +196,7 @@ typecheck_node :: proc(node: ^Ast_Node) {
     }
 }
 
+/*
 typecheck_identifier :: proc(ident: ^Ast_Identifier) {
     switch decl in ident.resolved_declaration.kind {
         case Decl_Type:   ident.type = decl.type;
@@ -204,17 +207,26 @@ typecheck_identifier :: proc(ident: ^Ast_Identifier) {
     }
     assert(ident.type != nil);
 }
+*/
 
 typecheck_var :: proc(var: ^Ast_Var) {
     typespec_type: ^Type;
     expr_type: ^Type;
-    if var.typespec != nil { typecheck_typespec(var.typespec);        assert(var.typespec.type != nil); typespec_type = var.typespec.type; }
-    if var.expr     != nil { typecheck_expr(var.expr, typespec_type); assert(var.expr.type != nil);     expr_type     = var.expr.type;     }
+    if var.typespec != nil {
+        typecheck_typespec(var.typespec);
+        assert(var.typespec.type != nil);
+        typespec_type = var.typespec.type;
+    }
+    if var.expr != nil {
+        typecheck_expr(var.expr, typespec_type);
+        assert(var.expr.type != nil);
+        expr_type = var.expr.type;
+    }
     if typespec_type == nil && expr_type == nil {
         panic("Must supply either an expression or a type for a var decl");
     }
     if typespec_type != nil && expr_type != nil {
-        assert(typespec_type == expr_type);
+        assert(typespec_type == expr_type); // todo(josh): we'll need a routine for checking if types are compatible at some point
     }
     if typespec_type != nil do var.type = typespec_type;
     if expr_type     != nil do var.type = expr_type;
@@ -231,13 +243,20 @@ typecheck_typespec :: proc(typespec: ^Expr_Typespec) {
     switch kind in &typespec.kind {
         case Typespec_Identifier: {
             assert(kind.ident != nil);
-            typecheck_identifier(kind.ident);
-            assert(kind.ident.type != nil);
             assert(kind.ident.resolved_declaration != nil);
             #partial
             switch decl in kind.ident.resolved_declaration.kind {
                 case Decl_Type:   typespec.type = decl.type;
                 case Decl_Struct: typespec.type = TYPE(decl.structure.type);
+                case Decl_Var: {
+                    if decl.var.is_const && decl.var.type == type_typeid {
+                        type_id := decl.var.constant_value.(TypeID);
+                        typespec.type = all_types[type_id];
+                    }
+                    else {
+                        panic(fmt.tprint(decl, "used as a type when it is not a type"));
+                    }
+                }
                 case: panic(fmt.tprint(decl, "used as a type when it is not a type"));
             }
         }
@@ -266,7 +285,7 @@ typecheck_typespec :: proc(typespec: ^Expr_Typespec) {
     expr := EXPR(typespec);
     expr.mode = .Constant;
     expr.constant_value = typespec.type.id;
-    // expr.type = type_typeid;
+    expr.type = type_typeid;
 }
 
 typecheck_proc :: proc(procedure: ^Ast_Proc) {
@@ -760,22 +779,30 @@ typecheck_expr :: proc(expr: ^Ast_Expr, expected_type: ^Type) {
             }
         }
         case Expr_Identifier: {
-            typecheck_identifier(kind.ident);
-            assert(kind.ident.type != nil);
-            expr.type = kind.ident.type;
-            expr.mode = .LValue;
-
-            // note(josh): this switch will stomp on the above `expr.mode = .LValue;`
-            #partial
             switch decl in kind.ident.resolved_declaration.kind {
+                case Decl_Type:   expr.type = type_typeid; expr.mode = .Constant; expr.constant_value = decl.type.id;
+                case Decl_Struct: expr.type = type_typeid; expr.mode = .Constant; expr.constant_value = TYPE(decl.structure.type).id;
                 case Decl_Var: {
+                    assert(decl.var.type != nil);
+                    expr.type = decl.var.type;
                     if decl.var.is_const {
                         assert(decl.var.constant_value != nil);
                         expr.constant_value = decl.var.constant_value;
                         expr.mode = .Constant;
                     }
+                    else {
+                        expr.mode = .LValue;
+                    }
                 }
+                case Decl_Proc: {
+                    assert(decl.procedure.type != nil);
+                    expr.type = TYPE(decl.procedure.type);
+                    expr.mode = .RValue;
+                }
+                case: panic(tprint(kind.ident));
             }
+            assert(expr.type != nil);
+            assert(expr.mode != .Invalid);
         }
         case Expr_Typespec: {
             typecheck_typespec(&kind);
