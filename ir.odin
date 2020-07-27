@@ -65,7 +65,6 @@ IR_Instruction_Kind :: union {
     IR_Call,
     IR_Return,
     IR_Take_Address,
-    IR_Dereference,
 }
 
 IR_Call :: struct {
@@ -122,10 +121,6 @@ IR_Push :: struct {
 }
 IR_Take_Address :: struct {
     storage_to_take_address_of: ^IR_Storage,
-    dst: u64,
-}
-IR_Dereference :: struct {
-    storage_to_dereference: ^IR_Storage,
     dst: u64,
 }
 
@@ -312,10 +307,17 @@ ir_inst :: proc(procedure: ^IR_Proc, instruction: IR_Instruction_Kind) {
     append(&current_block.instructions, IR_Instruction{instruction});
 }
 
-get_storage_for_expr :: proc(expr: ^Ast_Expr) -> ^IR_Storage {
-    assert(expr.mode == .LValue);
+get_storage_for_expr :: proc(expr: ^Ast_Expr, loc := #caller_location) -> ^IR_Storage {
+    // todo(josh): :AddressOfLValue does & produce an LValue? how do we do (&foo)^?
+    // todo(josh): :AddressOfLValue does & produce an LValue? how do we do (&foo)^?
+    // todo(josh): :AddressOfLValue does & produce an LValue? how do we do (&foo)^?
+
+    assert(expr.mode == .LValue, tprint(expr.kind, loc));
     #partial
     switch kind in expr.kind {
+        case Expr_Paren: {
+            return get_storage_for_expr(kind.expr);
+        }
         case Expr_Identifier: {
             #partial
             switch decl in kind.ident.resolved_declaration.kind {
@@ -388,7 +390,7 @@ gen_ir_expr :: proc(procedure: ^IR_Proc, expr: ^Ast_Expr, is_at_statement_level 
         return dst;
     }
 
-    switch kind in expr.kind {
+    switch kind in &expr.kind {
         case Expr_Binary: {
             lhs_reg := gen_ir_expr(procedure, kind.lhs);
             defer free_register(procedure, lhs_reg);
@@ -472,7 +474,7 @@ gen_ir_expr :: proc(procedure: ^IR_Proc, expr: ^Ast_Expr, is_at_statement_level 
         }
         case Expr_Dereference: {
             dst := alloc_register(procedure);
-            ir_inst(procedure, IR_Dereference{get_storage_for_expr(kind.lhs), dst});
+            ir_inst(procedure, IR_Load{get_storage_for_expr(expr), dst});
             return dst;
         }
 

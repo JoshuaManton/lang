@@ -24,4 +24,7 @@ proc main() {
     var ptr_ptr = &ptr;
     ptr_ptr^^ = 112;
     print(some_int);
+
+    // todo(josh): make this work
+    // print((&some_int)^);
 }

@@ -262,10 +262,6 @@ gen_vm_block :: proc(vm: ^VM, procedure: ^IR_Proc, block: ^IR_Block) {
                     case: panic(tprint(kind.storage_to_take_address_of));
                 }
             }
-            case IR_Dereference: {
-                gen_vm_load_from_storage(vm, procedure, VM_REGISTER(kind.dst), kind.storage_to_dereference);
-                gen_vm_load_from_pointer(vm, procedure, VM_REGISTER(kind.dst), VM_REGISTER(kind.dst), cast(u64)kind.storage_to_dereference.type_stored.kind.(Type_Ptr).ptr_to.size);
-            }
             case IR_Return: {
                 gen_vm_return(vm, procedure, &kind);
             }
