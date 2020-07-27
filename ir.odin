@@ -1,8 +1,7 @@
 package main
 
 import "core:fmt"
-
-import "shared:wb/logging"
+import "core:mem"
 
 // todo(josh): graphical debugger
 // todo(josh): #run
@@ -38,17 +37,20 @@ IR_Storage :: struct {
     kind: union {
         Stack_Frame_Storage,
         Global_Storage,
+        // Dynamic_Storage,
     },
+    type_stored: ^Type,
 }
 Stack_Frame_Storage :: struct {
     procedure: ^IR_Proc,
     offset_in_stack_frame: u64,
-    size: u64,
 }
 Global_Storage :: struct {
     address: u64,
-    size: u64,
 }
+// Dynamic_Storage :: struct {
+//     pointer_storage: ^IR_Storage,
+// }
 
 IR_Instruction :: struct {
     kind: IR_Instruction_Kind,
@@ -62,6 +64,8 @@ IR_Instruction_Kind :: union {
     IR_If,
     IR_Call,
     IR_Return,
+    IR_Take_Address,
+    IR_Dereference,
 }
 
 IR_Call :: struct {
@@ -115,6 +119,14 @@ IR_Load :: struct {
 IR_Push :: struct {
     dst: u64,
     type: ^Type,
+}
+IR_Take_Address :: struct {
+    storage_to_take_address_of: ^IR_Storage,
+    dst: u64,
+}
+IR_Dereference :: struct {
+    storage_to_dereference: ^IR_Storage,
+    dst: u64,
 }
 
 current_block: ^IR_Block;
@@ -317,6 +329,10 @@ get_storage_for_expr :: proc(expr: ^Ast_Expr) -> ^IR_Storage {
                 case: panic(tprint(decl)); // todo(josh): error logging
             }
         }
+        case Expr_Dereference: {
+            root_storage := get_storage_for_expr(kind.lhs);
+            panic("");
+        }
         case Expr_Selector: {
             root_storage := get_storage_for_expr(kind.lhs);
             #partial
@@ -330,14 +346,14 @@ get_storage_for_expr :: proc(expr: ^Ast_Expr) -> ^IR_Storage {
                                     return new_clone(IR_Storage{
                                         Stack_Frame_Storage{
                                             root_storage_kind.procedure,
-                                            root_storage_kind.offset_in_stack_frame + cast(u64)offset,
-                                            cast(u64)field.type.size}});
+                                            root_storage_kind.offset_in_stack_frame + cast(u64)offset},
+                                        field.type});
                                 }
                                 case Global_Storage: {
                                     return new_clone(IR_Storage{
                                         Global_Storage{
-                                            root_storage_kind.address + cast(u64)offset,
-                                            cast(u64)field.type.size}});
+                                            root_storage_kind.address + cast(u64)offset},
+                                        field.type});
                                 }
                                 case: panic("");
                             }
@@ -447,6 +463,17 @@ gen_ir_expr :: proc(procedure: ^IR_Proc, expr: ^Ast_Expr, is_at_statement_level 
         case Expr_Paren: {
             return gen_ir_expr(procedure, kind.expr, is_at_statement_level);
         }
+        case Expr_Address_Of: {
+            assert(kind.rhs.mode == .LValue);
+            dst := alloc_register(procedure);
+            ir_inst(procedure, IR_Take_Address{get_storage_for_expr(kind.rhs), dst});
+            return dst;
+        }
+        case Expr_Dereference: {
+            dst := alloc_register(procedure);
+            ir_inst(procedure, IR_Dereference{get_storage_for_expr(kind.lhs), dst});
+            return dst;
+        }
 
         case Expr_Subscript: panic("Expr_Subscript");
         case Expr_Cast:      panic("Expr_Cast");
@@ -457,8 +484,6 @@ gen_ir_expr :: proc(procedure: ^IR_Proc, expr: ^Ast_Expr, is_at_statement_level 
         case Expr_Null:     panic("should have been handled above in the constant check");
         case Expr_True:     panic("should have been handled above in the constant check");
         case Expr_False:    panic("should have been handled above in the constant check");
-        case Expr_Address_Of:  panic("Expr_Address_Of");
-        case Expr_Dereference: panic("Expr_Dereference");
         case: panic(tprint(kind));
     }
     unreachable();
@@ -494,14 +519,14 @@ free_register :: proc(procedure: ^IR_Proc, reg: u64, loc := #caller_location) {
 
 gen_ir_var :: proc(ir: ^IR_Result, var: ^Ast_Var, procedure: ^IR_Proc) -> ^IR_Var {
     if procedure == nil {
-        ir_var := make_ir_var(var, IR_Storage{Global_Storage{0, cast(u64)var.type.size}});
+        ir_var := make_ir_var(var, IR_Storage{Global_Storage{0}, var.type});
         append(&ir.global_variables, ir_var);
         return ir_var;
     }
     else {
-        // todo(josh): alignment!!!!
-        ir_var := make_ir_var(var, IR_Storage{Stack_Frame_Storage{procedure, procedure.stack_frame_size, cast(u64)var.type.size}});
-        procedure.stack_frame_size += cast(u64)ir_var.type.size;
+        stack_alignment := cast(u64)mem.align_forward_int(cast(int)procedure.stack_frame_size, var.type.align);
+        ir_var := make_ir_var(var, IR_Storage{Stack_Frame_Storage{procedure, stack_alignment}, var.type});
+        procedure.stack_frame_size = stack_alignment + cast(u64)ir_var.type.size;
         ir_var.procedure = procedure;
         return ir_var;
     }
@@ -517,259 +542,3 @@ make_ir_var :: proc(var: ^Ast_Var, storage: IR_Storage) -> ^IR_Var {
     ir_var.storage = storage;
     return ir_var;
 }
-
-translate_ir_to_vm :: proc(ir: ^IR_Result) -> ^VM {
-    vm := make_vm();
-
-    for variable in ir.global_variables {
-        address := vm_allocate_static_storage(vm, cast(int)variable.type.size);
-        assert(address != 0);
-        // weird that we have to do this pointery thing
-        _, ok := variable.storage.kind.(Global_Storage); assert(ok);
-        storage := cast(^Global_Storage)variable.storage;
-        storage.address = cast(u64)address;
-    }
-
-    for procedure in ir.procedures {
-        if procedure.name == "main" {
-            vm.entry_point = cast(u64)len(vm.instructions);
-        }
-
-        gen_vm_proc(vm, procedure);
-    }
-
-    execute_vm(vm);
-
-    return vm;
-}
-
-gen_vm_load :: proc(vm: ^VM, procedure: ^IR_Proc, dst: Register, storage: ^IR_Storage) {
-    switch kind in storage.kind {
-        case Stack_Frame_Storage: {
-            add_instruction(vm, ADDI{.rt, .rfp, -cast(i64)(kind.offset_in_stack_frame + kind.size)});
-            switch kind.size {
-                case 1: add_instruction(vm, LOAD8 {dst, .rt});
-                case 2: add_instruction(vm, LOAD16{dst, .rt});
-                case 4: add_instruction(vm, LOAD32{dst, .rt});
-                case 8: add_instruction(vm, LOAD64{dst, .rt});
-                case: panic("too big");
-            }
-        }
-        case Global_Storage: {
-            assert(kind.address != 0);
-            add_instruction(vm, MOVI{.rt, cast(i64)kind.address});
-            switch kind.size {
-                case 1: add_instruction(vm, LOAD8 {dst, .rt});
-                case 2: add_instruction(vm, LOAD16{dst, .rt});
-                case 4: add_instruction(vm, LOAD32{dst, .rt});
-                case 8: add_instruction(vm, LOAD64{dst, .rt});
-                case: panic("too big");
-            }
-        }
-        case: panic(tprint(storage));
-    }
-}
-
-gen_vm_store :: proc(vm: ^VM, procedure: ^IR_Proc, src: Register, storage: ^IR_Storage) {
-    switch storage in storage.kind {
-        case Stack_Frame_Storage: {
-            add_instruction(vm, ADDI{.rt, .rfp, -cast(i64)(storage.offset_in_stack_frame + storage.size)});
-            switch storage.size {
-                case 1: add_instruction(vm, STORE8 {.rt, src});
-                case 2: add_instruction(vm, STORE16{.rt, src});
-                case 4: add_instruction(vm, STORE32{.rt, src});
-                case 8: add_instruction(vm, STORE64{.rt, src});
-                case: panic("too big");
-            }
-        }
-        case Global_Storage: {
-            assert(storage.address != 0);
-            add_instruction(vm, MOVI{.rt, cast(i64)storage.address});
-            switch storage.size {
-                case 1: add_instruction(vm, STORE8 {.rt, src});
-                case 2: add_instruction(vm, STORE16{.rt, src});
-                case 4: add_instruction(vm, STORE32{.rt, src});
-                case 8: add_instruction(vm, STORE64{.rt, src});
-                case: panic("too big");
-            }
-        }
-        case: panic(tprint(storage));
-    }
-}
-
-gen_vm_proc :: proc(vm: ^VM, procedure: ^IR_Proc) {
-    // header
-    label(vm, procedure.name);
-
-    // save caller things :CallingConvention
-    add_instruction(vm, PUSH{.rfp});
-    add_instruction(vm, PUSH{.ra});
-
-    // setup our stack frame
-    add_instruction(vm, MOV{.rfp, .rsp});
-    add_instruction(vm, ADDI{.rsp, .rsp, cast(i64)-procedure.stack_frame_size});
-
-    // for param in procedure.parameters {
-    //     gen_vm_load(vm, procedure, .rt, param.storage);
-    // }
-
-    // generate the body
-    gen_vm_block(vm, procedure, procedure.block);
-
-    if procedure.name == "main" {
-        // :CallingConvention
-        add_instruction(vm, ADDI{.rsp, .rsp, cast(i64)procedure.stack_frame_size});
-        // add_instruction(vm, POP{.ra});
-        // add_instruction(vm, POP{.rfp});
-        add_instruction(vm, EXIT{});
-    }
-    else {
-        // return
-        gen_vm_return(vm, procedure);
-    }
-}
-
-gen_vm_return :: proc(vm: ^VM, procedure: ^IR_Proc, ir_return: ^IR_Return = nil) {
-    add_instruction(vm, ADDI{.rsp, .rsp, cast(i64)procedure.stack_frame_size});
-
-    // :CallingConvention
-    add_instruction(vm, POP{.ra});
-    add_instruction(vm, POP{.rfp});
-
-    if ir_return != nil {
-        if reg, ok := getval(&ir_return.result_register); ok {
-            assert(ir_return.type.size == 4 || ir_return.type.size == 8);
-            add_instruction(vm, PUSH{VM_REGISTER(reg^)});
-        }
-    }
-
-    add_instruction(vm, MOV{.rip, .ra});
-}
-
-gen_vm_block :: proc(vm: ^VM, procedure: ^IR_Proc, block: ^IR_Block) {
-    for inst in &block.instructions {
-        switch kind in &inst.kind {
-            case IR_Move_Immediate: {
-                switch val in kind.value {
-                    case i64: add_instruction(vm, MOVI{VM_REGISTER(kind.dst), kind.value.(i64)});
-                    case f64: panic("todo(josh): support floats");
-                    case: panic(tprint(val));
-                }
-            }
-            case IR_Store: gen_vm_store(vm, procedure, VM_REGISTER(kind.reg), kind.storage);
-            case IR_Load:  gen_vm_load (vm, procedure, VM_REGISTER(kind.dst), kind.storage);
-            case IR_Binop: {
-                switch kind.op {
-                    case .Plus:          add_instruction(vm, ADD{VM_REGISTER(kind.dst), VM_REGISTER(kind.lhs), VM_REGISTER(kind.rhs)});
-                    case .Multiply:      add_instruction(vm, MUL{VM_REGISTER(kind.dst), VM_REGISTER(kind.lhs), VM_REGISTER(kind.rhs)});
-                    case .Minus:         add_instruction(vm, SUB{VM_REGISTER(kind.dst), VM_REGISTER(kind.lhs), VM_REGISTER(kind.rhs)});
-                    case .Equal_To:      add_instruction(vm, EQ {VM_REGISTER(kind.dst), VM_REGISTER(kind.lhs), VM_REGISTER(kind.rhs)});
-                    case .Not_Equal:     add_instruction(vm, NEQ{VM_REGISTER(kind.dst), VM_REGISTER(kind.lhs), VM_REGISTER(kind.rhs)});
-                    case .Divide:        unimplemented();
-                    case .Mod:           unimplemented();
-                    case .Mod_Mod:       unimplemented();
-                    case .Shift_Left:    unimplemented();
-                    case .Shift_Right:   unimplemented();
-                    case .Bit_Xor:       unimplemented();
-                    case .Bit_Or:        unimplemented();
-                    case .Bit_And:       unimplemented();
-                    case .Bit_Not:       unimplemented();
-                    case .Not:           unimplemented();
-                    case .Less:          unimplemented();
-                    case .Greater:       unimplemented();
-                    case .Less_Equal:    unimplemented();
-                    case .Greater_Equal: unimplemented();
-                    case .And:           unimplemented();
-                    case .Or:            unimplemented();
-                }
-            }
-            case IR_Unary: {
-                #partial
-                switch kind.op {
-                    case .Minus: {
-                        add_instruction(vm, SUB{VM_REGISTER(kind.dst), .rz, VM_REGISTER(kind.rhs)});
-                    }
-                    case .Not: {
-                        add_instruction(vm, EQ{VM_REGISTER(kind.dst), VM_REGISTER(kind.rhs), .rz});
-                    }
-                    case: panic(tprint(kind.op));
-                }
-            }
-            case IR_If: {
-                end_of_if_label := aprint("if_", kind.s);
-                else_label := aprint("if_else_", kind.s);
-                if kind.else_block != nil {
-                    add_instruction(vm, GOTOIFZ{VM_REGISTER(kind.condition_reg), else_label});
-                }
-                else {
-                    add_instruction(vm, GOTOIFZ{VM_REGISTER(kind.condition_reg), end_of_if_label});
-                }
-
-                gen_vm_block(vm, procedure, kind.block);
-
-                if kind.else_block != nil {
-                    add_instruction(vm, GOTO{end_of_if_label});
-                    label(vm, else_label);
-                    gen_vm_block(vm, procedure, kind.else_block);
-                }
-                label(vm, end_of_if_label);
-            }
-            case IR_Call: {
-                switch kind.procedure_name {
-                    // todo(josh): proper intrinsics
-                    case "__trap": {
-                        add_instruction(vm, TRAP{});
-                    }
-                    case "__print_int": {
-                        assert(len(kind.parameters) == 1);
-                        p := kind.parameters[0];
-                        gen_vm_block(vm, procedure, p.block);
-                        add_instruction(vm, PRINT_INT{VM_REGISTER(p.result_register)});
-                    }
-                    case: {
-                        for reg in kind.registers_to_save {
-                            add_instruction(vm, PUSH{VM_REGISTER(reg)});
-                        }
-
-                        parameter_rsp_offset: i64 = -16; // :CallingConvention the top of the stack for a procedure has 8 bytes for caller rfp and 8 bytes for caller ra
-                        for param in kind.parameters {
-                            gen_vm_block(vm, procedure, param.block);
-                            parameter_rsp_offset -= cast(i64)param.type.size;
-                            add_instruction(vm, ADDI{.rt, .rsp, parameter_rsp_offset});
-                            switch param.type.size {
-                                case 1: add_instruction(vm, STORE8 {.rt, VM_REGISTER(param.result_register)});
-                                case 2: add_instruction(vm, STORE16{.rt, VM_REGISTER(param.result_register)});
-                                case 4: add_instruction(vm, STORE32{.rt, VM_REGISTER(param.result_register)});
-                                case 8: add_instruction(vm, STORE64{.rt, VM_REGISTER(param.result_register)});
-                                case: panic(tprint(param.type.size));
-                            }
-                        }
-
-                        call(vm, kind.procedure_name);
-
-                        if reg, ok := getval(&kind.result_register); ok {
-                            add_instruction(vm, POP{VM_REGISTER(reg^)});
-                        }
-
-                        for idx := len(kind.registers_to_save)-1; idx >= 0; idx -= 1 {
-                            add_instruction(vm, POP{VM_REGISTER(kind.registers_to_save[idx])});
-                        }
-                    }
-                }
-            }
-            case IR_Return: {
-                gen_vm_return(vm, procedure, &kind);
-            }
-
-            case: panic(tprint(kind));
-        }
-    }
-}
-
-VM_REGISTER :: proc(r: u64) -> Register {
-    return .r1 + Register(r);
-}
-
-
-logln :: logging.logln;
-logf :: logging.logf;

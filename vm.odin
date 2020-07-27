@@ -16,6 +16,8 @@ VM :: struct {
 
     label_mapping: map[string]u64,
     label_mapping_from_ip: map[u64]string,
+
+    ip_to_comment_mapping: map[u64][dynamic]string,
 }
 
 Register :: enum {
@@ -338,27 +340,41 @@ add_instruction :: proc(vm: ^VM, instruction: Instruction) {
 label :: proc(vm: ^VM, name: string) {
     name := strings.clone(name);
     ip := cast(u64)len(vm.instructions);
+    assert(name not_in vm.label_mapping, "no duplicate label names");
+    assert(ip not_in vm.label_mapping_from_ip, "not allowed multiple labels for same IP");
     vm.label_mapping[name] = ip;
     vm.label_mapping_from_ip[ip] = name;
 }
 
-vm_allocate_static_storage :: proc(vm: ^VM, size: int) -> int {
+vm_comment :: proc(vm: ^VM, comment: string) {
+    ip := cast(u64)len(vm.instructions);
+    if ip not_in vm.ip_to_comment_mapping {
+        vm.ip_to_comment_mapping[ip] = {};
+    }
+    arr := &vm.ip_to_comment_mapping[ip];
+    append(arr, comment);
+}
+
+vm_allocate_static_storage :: proc(vm: ^VM, size: int, align: int) -> int {
     // todo(josh): make sure that the stack never writes to the place it starts at
     offset := vm.persistent_storage_watermark;
-    offset = align_forward_int(offset, size_of(rawptr)*2); // todo(josh): real alignment
+    offset = align_forward_int(offset, align);
     vm.persistent_storage_watermark = offset + size;
     return offset;
 }
 
 execute_vm :: proc(vm: ^VM) {
-    global_storage_start_index := vm_allocate_static_storage(vm, 4);
-    vm.memory[global_storage_start_index] = 149;
-
     for instruction, idx in vm.instructions {
         if cast(u64)idx in vm.label_mapping_from_ip {
             fmt.printf("%s:\n", vm.label_mapping_from_ip[cast(u64)idx]);
         }
-        fmt.println("    ", vm.instructions[idx]);
+        if cast(u64)idx in vm.ip_to_comment_mapping {
+            arr := vm.ip_to_comment_mapping[cast(u64)idx];
+            for comment in arr {
+                fmt.printf("  ; %s\n", comment);
+            }
+        }
+        fmt.printf("    %v\n", vm.instructions[idx]);
 
         #partial
         switch kind in instruction {

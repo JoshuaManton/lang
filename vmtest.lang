@@ -131,9 +131,21 @@ proc bool_stuff() {
     }
 }
 
+proc pointers() {
+    var some_int = 123;
+    var ptr = &some_int;
+
+    assert(some_int == 123);
+    assert(ptr^     == 123);
+
+    // ptr^ = 321;
+    // assert(some_int == 321);
+}
+
 proc main() {
     things();
     int_sizes();
     type_alias();
     bool_stuff();
+    pointers();
 }

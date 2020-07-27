@@ -7,7 +7,7 @@ import "core:strconv"
 global_scope: ^Ast_Scope;
 current_scope: ^Ast_Scope;
 current_procedure: ^Ast_Proc;
-current_loop_scope: ^Ast_Scope;
+current_loop_scope: ^Ast_Scope; // todo(josh): put this in Ast_Proc
 
 init_parser :: proc() {
     global_scope = make_node(Ast_Scope);
@@ -100,7 +100,7 @@ parse_single_statement :: proc(lexer: ^Lexer) -> ^Ast_Node {
                 assert(ok);
                 #partial
                 switch token.kind {
-                    // todo(josh): all the assignment variants
+                    // todo(josh): the rest of the assignment variants, <<=, >>=, %=, etc
                     case .Assign, .Plus_Assign, .Minus_Assign, .Multiply_Assign, .Divide_Assign: {
                         lhs := root_expr;
                         get_next_token(lexer);

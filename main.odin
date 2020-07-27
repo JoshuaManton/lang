@@ -4,6 +4,8 @@ import "core:fmt"
 import "core:strconv"
 import "core:os"
 
+import "shared:wb/logging"
+
 main :: proc() {
     if len(os.args) < 2 {
         fmt.println("Usage:\n  lang <filename>");
@@ -25,33 +27,8 @@ main :: proc() {
     typecheck_node(NODE(global_scope));
     fmt.println("Generating IR...");
     ir := generate_ir();
-
-    // for procedure in ir.procedures {
-    //     fmt.println(procedure.name);
-    //     for inst in procedure.instructions {
-    //         fmt.println(inst.kind);
-    //     }
-    // }
-    // for variable in ir.global_variables {
-    //     fmt.println(variable);
-    // }
-
-
     vm := translate_ir_to_vm(ir);
-    // execute_vm(vm);
-
-
-    // when false {
-    //     fmt.println("Generating IR...");
-    //     ir := gen_ir();
-    //     fmt.println("Translating IR to VM...");
-    //     vm := gen_vm(ir);
-    // }
-    // else {
-    //     fmt.println("Generating C code...");
-    //     c_code := gen_c();
-    //     os.write_entire_file("output.c", transmute([]byte)c_code);
-    // }
+    execute_vm(vm);
 
     // fmt.println("Outputting AST...");
     // output_graphviz(NODE(file));
@@ -183,6 +160,9 @@ gv_name :: proc(node: ^Ast_Node) -> string {
     return strings.to_string(name);
 }
 */
+
+logln :: logging.logln;
+logf :: logging.logf;
 
 println :: fmt.println;
 tprint :: fmt.tprint;
