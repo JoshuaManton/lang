@@ -1,0 +1,27 @@
+proc __trap() #foreign;
+proc __print_int(n: int) #foreign;
+
+proc print(n: int) {
+    __print_int(n);
+}
+
+proc assert(condition: bool) {
+    if (condition == false) {
+        __trap();
+    }
+}
+
+proc main() {
+    var some_int = 123;
+    print(some_int);
+
+    var ptr = &some_int;
+    print(ptr^);
+
+    ptr^ = 321;
+    print(some_int);
+
+    var ptr_ptr = &ptr;
+    ptr_ptr^^ = 112;
+    print(some_int);
+}

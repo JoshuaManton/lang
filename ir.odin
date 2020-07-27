@@ -37,7 +37,7 @@ IR_Storage :: struct {
     kind: union {
         Stack_Frame_Storage,
         Global_Storage,
-        // Dynamic_Storage,
+        Indirect_Storage,
     },
     type_stored: ^Type,
 }
@@ -48,9 +48,9 @@ Stack_Frame_Storage :: struct {
 Global_Storage :: struct {
     address: u64,
 }
-// Dynamic_Storage :: struct {
-//     pointer_storage: ^IR_Storage,
-// }
+Indirect_Storage :: struct {
+    storage_of_pointer: ^IR_Storage,
+}
 
 IR_Instruction :: struct {
     kind: IR_Instruction_Kind,
@@ -184,8 +184,6 @@ gen_ir_proc :: proc(ir: ^IR_Result, ast_procedure: ^Ast_Proc) -> ^IR_Proc {
             append(&ir_procedure.parameters, ir_var);
         }
     }
-
-    logln("Size of stack frame: ", ir_procedure.stack_frame_size);
 
     ir_procedure.block = new(IR_Block);
 
@@ -331,7 +329,7 @@ get_storage_for_expr :: proc(expr: ^Ast_Expr) -> ^IR_Storage {
         }
         case Expr_Dereference: {
             root_storage := get_storage_for_expr(kind.lhs);
-            panic("");
+            return new_clone(IR_Storage{Indirect_Storage{root_storage}, kind.lhs.type.kind.(Type_Ptr).ptr_to});
         }
         case Expr_Selector: {
             root_storage := get_storage_for_expr(kind.lhs);
@@ -354,6 +352,9 @@ get_storage_for_expr :: proc(expr: ^Ast_Expr) -> ^IR_Storage {
                                         Global_Storage{
                                             root_storage_kind.address + cast(u64)offset},
                                         field.type});
+                                }
+                                case Indirect_Storage: {
+                                    panic("This shouldn't be possible, we would get into the `cast Type_Ptr` below.");
                                 }
                                 case: panic("");
                             }

@@ -365,16 +365,18 @@ vm_allocate_static_storage :: proc(vm: ^VM, size: int, align: int) -> int {
 
 execute_vm :: proc(vm: ^VM) {
     for instruction, idx in vm.instructions {
-        if cast(u64)idx in vm.label_mapping_from_ip {
-            fmt.printf("%s:\n", vm.label_mapping_from_ip[cast(u64)idx]);
-        }
-        if cast(u64)idx in vm.ip_to_comment_mapping {
-            arr := vm.ip_to_comment_mapping[cast(u64)idx];
-            for comment in arr {
-                fmt.printf("  ; %s\n", comment);
+        when false {
+            if cast(u64)idx in vm.label_mapping_from_ip {
+                fmt.printf("%s:\n", vm.label_mapping_from_ip[cast(u64)idx]);
             }
+            if cast(u64)idx in vm.ip_to_comment_mapping {
+                arr := vm.ip_to_comment_mapping[cast(u64)idx];
+                for comment in arr {
+                    fmt.printf("  ; %s\n", comment);
+                }
+            }
+            fmt.printf("    %v\n", vm.instructions[idx]);
         }
-        fmt.printf("    %v\n", vm.instructions[idx]);
 
         #partial
         switch kind in instruction {

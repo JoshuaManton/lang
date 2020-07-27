@@ -35,6 +35,10 @@ gen_vm_load_from_storage :: proc(vm: ^VM, procedure: ^IR_Proc, dst: Register, st
             add_instruction(vm, MOVI{.rt, cast(i64)kind.address}); // todo(josh): this kind.address could probably be an immediate
             gen_vm_load_from_pointer(vm, procedure, dst, .rt, cast(u64)storage.type_stored.size);
         }
+        case Indirect_Storage: {
+            gen_vm_load_from_storage(vm, procedure, dst, kind.storage_of_pointer);
+            gen_vm_load_from_pointer(vm, procedure, dst, dst, cast(u64)kind.storage_of_pointer.type_stored.size);
+        }
         case: panic(tprint(storage));
     }
 }
@@ -58,6 +62,10 @@ gen_vm_store_to_storage :: proc(vm: ^VM, procedure: ^IR_Proc, src: Register, sto
         case Global_Storage: {
             assert(storage_kind.address != 0);
             add_instruction(vm, MOVI{.rt, cast(i64)storage_kind.address});
+            gen_vm_store_to_pointer(vm, procedure, .rt, src, cast(u64)storage.type_stored.size);
+        }
+        case Indirect_Storage: {
+            gen_vm_load_from_storage(vm, procedure, .rt, storage_kind.storage_of_pointer);
             gen_vm_store_to_pointer(vm, procedure, .rt, src, cast(u64)storage.type_stored.size);
         }
         case: panic(tprint(storage));
@@ -247,6 +255,9 @@ gen_vm_block :: proc(vm: ^VM, procedure: ^IR_Proc, block: ^IR_Block) {
                     }
                     case Stack_Frame_Storage: {
                         add_instruction(vm, ADDI{VM_REGISTER(kind.dst), .rfp, -cast(i64)(storage_kind.offset_in_stack_frame + cast(u64)kind.storage_to_take_address_of.type_stored.size)});
+                    }
+                    case Indirect_Storage: {
+                        panic("I don't think this makes any sense? Maybe &foo^? Kinda weird");
                     }
                     case: panic(tprint(kind.storage_to_take_address_of));
                 }

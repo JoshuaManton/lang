@@ -33,9 +33,9 @@ proc things() {
     v.x = 1;
     v.y = 4;
     v.z = 9;
-    print(v.x);
-    print(v.y);
-    print(v.z);
+    assert(v.x == 1);
+    assert(v.y == 4);
+    assert(v.z == 9);
 
     aa = 5;
     aa = factorial(aa);
@@ -62,12 +62,7 @@ proc things() {
     assert(cc == 840);
     assert(x == 3628800);
 
-    print(aa);
-    print(bb);
-    print(cc);
-
     var foozlebarzle = 123;
-    print(foozlebarzle);
     assert(foozlebarzle == 123);
 }
 
@@ -93,9 +88,7 @@ proc int_sizes() {
     assert(sizeof(c) == 2);
     assert(sizeof(d) == 1);
 
-    print(sizeof(^int));
     assert(sizeof(^int) == 8);
-    print(sizeof([]int));
     assert(sizeof([]int) == 16);
 }
 
@@ -138,8 +131,13 @@ proc pointers() {
     assert(some_int == 123);
     assert(ptr^     == 123);
 
-    // ptr^ = 321;
-    // assert(some_int == 321);
+    ptr^ = 321;
+    assert(some_int == 321);
+    assert(ptr^     == 321);
+
+    var ptr_ptr = &ptr;
+    ptr_ptr^^ = 112;
+    assert(some_int == 112);
 }
 
 proc main() {

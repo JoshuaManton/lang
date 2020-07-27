@@ -27,7 +27,9 @@ main :: proc() {
     typecheck_node(NODE(global_scope));
     fmt.println("Generating IR...");
     ir := generate_ir();
+    fmt.println("Translating IR to bytecode...");
     vm := translate_ir_to_vm(ir);
+    fmt.println("Executing bytecode...");
     execute_vm(vm);
 
     // fmt.println("Outputting AST...");
