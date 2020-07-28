@@ -37,7 +37,7 @@ gen_vm_load_from_storage :: proc(vm: ^VM, procedure: ^IR_Proc, dst: Register, st
         }
         case Indirect_Storage: {
             gen_vm_load_from_storage(vm, procedure, dst, kind.storage_of_pointer);
-            gen_vm_load_from_pointer(vm, procedure, dst, dst, cast(u64)kind.storage_of_pointer.type_stored.size);
+            gen_vm_load_from_pointer(vm, procedure, dst, dst, cast(u64)kind.storage_of_pointer.type_stored.kind.(Type_Ptr).ptr_to.size);
         }
         case: panic(tprint(storage));
     }
