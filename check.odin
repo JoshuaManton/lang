@@ -619,7 +619,6 @@ typecheck_expr :: proc(expr: ^Ast_Expr, expected_type: ^Type) {
             assert(kind.rhs.mode == .LValue);
             rhs_type := kind.rhs.type;
             expr.type = TYPE(get_or_make_type_ptr_to(rhs_type));
-            // todo(josh): :AddressOfLValue does & produce an LValue?
             expr.mode = .RValue;
         }
         case Expr_Dereference: {

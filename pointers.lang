@@ -11,6 +11,8 @@ proc assert(condition: bool) {
     }
 }
 
+var global_var: int;
+
 proc main() {
     var some_int = 123;
     print(some_int);
@@ -24,6 +26,11 @@ proc main() {
     var ptr_ptr = &ptr;
     ptr_ptr^^ = 112;
     print(some_int);
+
+    var global_ptr = &global_var;
+    global_ptr^ += 13;
+    print(global_var);
+    assert(global_var == global_ptr^);
 
     // todo(josh): make this work
     // print((&some_int)^);

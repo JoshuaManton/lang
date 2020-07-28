@@ -96,10 +96,6 @@ gen_vm_proc :: proc(vm: ^VM, procedure: ^IR_Proc) {
     add_instruction(vm, MOV{.rfp, .rsp});
     add_instruction(vm, ADDI{.rsp, .rsp, cast(i64)-procedure.stack_frame_size});
 
-    // for param in procedure.parameters {
-    //     gen_vm_load_from_storage(vm, procedure, .rt, param.storage);
-    // }
-
     // generate the body
     vm_comment(vm, "body");
     gen_vm_block(vm, procedure, procedure.block);
@@ -148,7 +144,7 @@ gen_vm_block :: proc(vm: ^VM, procedure: ^IR_Proc, block: ^IR_Block) {
                 }
             }
             case IR_Store: gen_vm_store_to_storage(vm, procedure, VM_REGISTER(kind.reg), kind.storage);
-            case IR_Load:  gen_vm_load_from_storage (vm, procedure, VM_REGISTER(kind.dst), kind.storage);
+            case IR_Load:  gen_vm_load_from_storage(vm, procedure, VM_REGISTER(kind.dst), kind.storage);
             case IR_Binop: {
                 switch kind.op {
                     case .Plus:          add_instruction(vm, ADD{VM_REGISTER(kind.dst), VM_REGISTER(kind.lhs), VM_REGISTER(kind.rhs)});

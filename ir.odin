@@ -308,10 +308,6 @@ ir_inst :: proc(procedure: ^IR_Proc, instruction: IR_Instruction_Kind) {
 }
 
 get_storage_for_expr :: proc(expr: ^Ast_Expr, loc := #caller_location) -> ^IR_Storage {
-    // todo(josh): :AddressOfLValue does & produce an LValue? how do we do (&foo)^?
-    // todo(josh): :AddressOfLValue does & produce an LValue? how do we do (&foo)^?
-    // todo(josh): :AddressOfLValue does & produce an LValue? how do we do (&foo)^?
-
     assert(expr.mode == .LValue, tprint(expr.kind, loc));
     #partial
     switch kind in expr.kind {
