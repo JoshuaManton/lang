@@ -165,6 +165,7 @@ gv_name :: proc(node: ^Ast_Node) -> string {
 
 logln :: logging.logln;
 logf :: logging.logf;
+pretty_print :: logging.pretty_print;
 
 println :: fmt.println;
 tprint :: fmt.tprint;

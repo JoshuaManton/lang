@@ -39,6 +39,9 @@ gen_vm_load_from_storage :: proc(vm: ^VM, procedure: ^IR_Proc, dst: Register, st
             gen_vm_load_from_storage(vm, procedure, dst, kind.storage_of_pointer);
             gen_vm_load_from_pointer(vm, procedure, dst, dst, cast(u64)kind.storage_of_pointer.type_stored.kind.(Type_Ptr).ptr_to.size);
         }
+        case Register_Storage: {
+            panic("what does this mean");
+        }
         case: panic(tprint(storage));
     }
 }
@@ -67,6 +70,9 @@ gen_vm_store_to_storage :: proc(vm: ^VM, procedure: ^IR_Proc, src: Register, sto
         case Indirect_Storage: {
             gen_vm_load_from_storage(vm, procedure, .rt, storage_kind.storage_of_pointer);
             gen_vm_store_to_pointer(vm, procedure, .rt, src, cast(u64)storage.type_stored.size);
+        }
+        case Register_Storage: {
+            panic("what does this mean");
         }
         case: panic(tprint(storage));
     }
@@ -125,7 +131,7 @@ gen_vm_return :: proc(vm: ^VM, procedure: ^IR_Proc, ir_return: ^IR_Return = nil)
     if ir_return != nil {
         if reg, ok := getval(&ir_return.result_register); ok {
             assert(ir_return.type.size == 4 || ir_return.type.size == 8);
-            add_instruction(vm, PUSH{VM_REGISTER(reg^)});
+            add_instruction(vm, PUSH{VM_REGISTER(reg^.register)});
         }
     }
 
@@ -138,20 +144,20 @@ gen_vm_block :: proc(vm: ^VM, procedure: ^IR_Proc, block: ^IR_Block) {
         switch kind in &inst.kind {
             case IR_Move_Immediate: {
                 switch val in kind.value {
-                    case i64: add_instruction(vm, MOVI{VM_REGISTER(kind.dst), kind.value.(i64)});
+                    case i64: add_instruction(vm, MOVI{VM_REGISTER(kind.dst.register), kind.value.(i64)});
                     case f64: panic("todo(josh): support floats");
                     case: panic(tprint(val));
                 }
             }
-            case IR_Store: gen_vm_store_to_storage(vm, procedure, VM_REGISTER(kind.reg), kind.storage);
-            case IR_Load:  gen_vm_load_from_storage(vm, procedure, VM_REGISTER(kind.dst), kind.storage);
+            case IR_Store: gen_vm_store_to_storage(vm, procedure, VM_REGISTER(kind.reg.register), kind.storage);
+            case IR_Load:  gen_vm_load_from_storage(vm, procedure, VM_REGISTER(kind.dst.register), kind.storage);
             case IR_Binop: {
                 switch kind.op {
-                    case .Plus:          add_instruction(vm, ADD{VM_REGISTER(kind.dst), VM_REGISTER(kind.lhs), VM_REGISTER(kind.rhs)});
-                    case .Multiply:      add_instruction(vm, MUL{VM_REGISTER(kind.dst), VM_REGISTER(kind.lhs), VM_REGISTER(kind.rhs)});
-                    case .Minus:         add_instruction(vm, SUB{VM_REGISTER(kind.dst), VM_REGISTER(kind.lhs), VM_REGISTER(kind.rhs)});
-                    case .Equal_To:      add_instruction(vm, EQ {VM_REGISTER(kind.dst), VM_REGISTER(kind.lhs), VM_REGISTER(kind.rhs)});
-                    case .Not_Equal:     add_instruction(vm, NEQ{VM_REGISTER(kind.dst), VM_REGISTER(kind.lhs), VM_REGISTER(kind.rhs)});
+                    case .Plus:          add_instruction(vm, ADD{VM_REGISTER(kind.dst.register), VM_REGISTER(kind.lhs.register), VM_REGISTER(kind.rhs.register)});
+                    case .Multiply:      add_instruction(vm, MUL{VM_REGISTER(kind.dst.register), VM_REGISTER(kind.lhs.register), VM_REGISTER(kind.rhs.register)});
+                    case .Minus:         add_instruction(vm, SUB{VM_REGISTER(kind.dst.register), VM_REGISTER(kind.lhs.register), VM_REGISTER(kind.rhs.register)});
+                    case .Equal_To:      add_instruction(vm, EQ {VM_REGISTER(kind.dst.register), VM_REGISTER(kind.lhs.register), VM_REGISTER(kind.rhs.register)});
+                    case .Not_Equal:     add_instruction(vm, NEQ{VM_REGISTER(kind.dst.register), VM_REGISTER(kind.lhs.register), VM_REGISTER(kind.rhs.register)});
                     case .Divide:        unimplemented();
                     case .Mod:           unimplemented();
                     case .Mod_Mod:       unimplemented();
@@ -174,10 +180,10 @@ gen_vm_block :: proc(vm: ^VM, procedure: ^IR_Proc, block: ^IR_Block) {
                 #partial
                 switch kind.op {
                     case .Minus: {
-                        add_instruction(vm, SUB{VM_REGISTER(kind.dst), .rz, VM_REGISTER(kind.rhs)});
+                        add_instruction(vm, SUB{VM_REGISTER(kind.dst.register), .rz, VM_REGISTER(kind.rhs.register)});
                     }
                     case .Not: {
-                        add_instruction(vm, EQ{VM_REGISTER(kind.dst), VM_REGISTER(kind.rhs), .rz});
+                        add_instruction(vm, EQ{VM_REGISTER(kind.dst.register), VM_REGISTER(kind.rhs.register), .rz});
                     }
                     case: panic(tprint(kind.op));
                 }
@@ -186,10 +192,10 @@ gen_vm_block :: proc(vm: ^VM, procedure: ^IR_Proc, block: ^IR_Block) {
                 end_of_if_label := aprint("if_", kind.s);
                 else_label := aprint("if_else_", kind.s);
                 if kind.else_block != nil {
-                    add_instruction(vm, GOTOIFZ{VM_REGISTER(kind.condition_reg), else_label});
+                    add_instruction(vm, GOTOIFZ{VM_REGISTER(kind.condition_reg.register), else_label});
                 }
                 else {
-                    add_instruction(vm, GOTOIFZ{VM_REGISTER(kind.condition_reg), end_of_if_label});
+                    add_instruction(vm, GOTOIFZ{VM_REGISTER(kind.condition_reg.register), end_of_if_label});
                 }
 
                 gen_vm_block(vm, procedure, kind.block);
@@ -211,7 +217,7 @@ gen_vm_block :: proc(vm: ^VM, procedure: ^IR_Proc, block: ^IR_Block) {
                         assert(len(kind.parameters) == 1);
                         p := kind.parameters[0];
                         gen_vm_block(vm, procedure, p.block);
-                        add_instruction(vm, PRINT_INT{VM_REGISTER(p.result_register)});
+                        add_instruction(vm, PRINT_INT{VM_REGISTER(p.result_register.register)});
                     }
                     case: {
                         for reg in kind.registers_to_save {
@@ -224,10 +230,10 @@ gen_vm_block :: proc(vm: ^VM, procedure: ^IR_Proc, block: ^IR_Block) {
                             parameter_rsp_offset -= cast(i64)param.type.size;
                             add_instruction(vm, ADDI{.rt, .rsp, parameter_rsp_offset});
                             switch param.type.size {
-                                case 1: add_instruction(vm, STORE8 {.rt, VM_REGISTER(param.result_register)});
-                                case 2: add_instruction(vm, STORE16{.rt, VM_REGISTER(param.result_register)});
-                                case 4: add_instruction(vm, STORE32{.rt, VM_REGISTER(param.result_register)});
-                                case 8: add_instruction(vm, STORE64{.rt, VM_REGISTER(param.result_register)});
+                                case 1: add_instruction(vm, STORE8 {.rt, VM_REGISTER(param.result_register.register)});
+                                case 2: add_instruction(vm, STORE16{.rt, VM_REGISTER(param.result_register.register)});
+                                case 4: add_instruction(vm, STORE32{.rt, VM_REGISTER(param.result_register.register)});
+                                case 8: add_instruction(vm, STORE64{.rt, VM_REGISTER(param.result_register.register)});
                                 case: panic(tprint(param.type.size));
                             }
                         }
@@ -235,7 +241,7 @@ gen_vm_block :: proc(vm: ^VM, procedure: ^IR_Proc, block: ^IR_Block) {
                         call(vm, kind.procedure_name);
 
                         if reg, ok := getval(&kind.result_register); ok {
-                            add_instruction(vm, POP{VM_REGISTER(reg^)});
+                            add_instruction(vm, POP{VM_REGISTER(reg^.register)});
                         }
 
                         for idx := len(kind.registers_to_save)-1; idx >= 0; idx -= 1 {
@@ -247,10 +253,13 @@ gen_vm_block :: proc(vm: ^VM, procedure: ^IR_Proc, block: ^IR_Block) {
             case IR_Take_Address: {
                 switch storage_kind in kind.storage_to_take_address_of.kind {
                     case Global_Storage: {
-                        add_instruction(vm, MOVI{VM_REGISTER(kind.dst), cast(i64)storage_kind.address});
+                        add_instruction(vm, MOVI{VM_REGISTER(kind.dst.register), cast(i64)storage_kind.address});
                     }
                     case Stack_Frame_Storage: {
-                        add_instruction(vm, ADDI{VM_REGISTER(kind.dst), .rfp, -cast(i64)(storage_kind.offset_in_stack_frame + cast(u64)kind.storage_to_take_address_of.type_stored.size)});
+                        add_instruction(vm, ADDI{VM_REGISTER(kind.dst.register), .rfp, -cast(i64)(storage_kind.offset_in_stack_frame + cast(u64)kind.storage_to_take_address_of.type_stored.size)});
+                    }
+                    case Register_Storage: {
+                        panic("Cannot take address of something with register storage.");
                     }
                     case Indirect_Storage: {
                         panic("I don't think this makes any sense? Maybe &foo^? Kinda weird");

@@ -124,20 +124,28 @@ proc bool_stuff() {
     }
 }
 
+var global_var: int;
+
 proc pointers() {
     var some_int = 123;
-    var ptr = &some_int;
-
     assert(some_int == 123);
-    assert(ptr^     == 123);
+
+    var ptr = &some_int;
+    assert(ptr^ == some_int);
 
     ptr^ = 321;
     assert(some_int == 321);
-    assert(ptr^     == 321);
+    assert(some_int == ptr^);
 
     var ptr_ptr = &ptr;
     ptr_ptr^^ = 112;
     assert(some_int == 112);
+    assert(some_int == ptr_ptr^^);
+
+    var global_ptr = &global_var;
+    global_ptr^ += 13;
+    assert(global_var == 13);
+    assert(global_var == global_ptr^);
 }
 
 proc main() {
