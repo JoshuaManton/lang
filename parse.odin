@@ -5,9 +5,10 @@ import "core:strings"
 import "core:strconv"
 
 global_scope: ^Ast_Scope;
+all_global_variables: [dynamic]^Ast_Var;
 current_scope: ^Ast_Scope;
 current_procedure: ^Ast_Proc;
-current_loop_scope: ^Ast_Scope; // todo(josh): put this in Ast_Proc
+current_loop_scope: ^Ast_Scope; // todo(josh): put this in Ast_Scope? Ast_Proc _would_ work but #run can exist outside of procedures
 
 init_parser :: proc() {
     global_scope = make_node(Ast_Scope);
@@ -163,6 +164,9 @@ parse_var :: proc(lexer: ^Lexer, require_semicolon: bool) -> ^Ast_Var {
 
     if current_procedure != nil {
         append(&current_procedure.variables, var);
+    }
+    else {
+        append(&all_global_variables, var);
     }
 
     register_declaration(current_scope, var.name, Decl_Var{var});

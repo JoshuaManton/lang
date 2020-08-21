@@ -130,6 +130,13 @@ proc pointers() {
     var some_int = 123;
     assert(some_int == 123);
 
+    // todo(josh): this leaks registers
+    // (&some_int)^ = 442;
+    // assert(some_int == 442);
+
+    var thing = (&some_int)^;
+    assert(thing == some_int);
+
     var ptr = &some_int;
     assert(ptr^ == some_int);
 
@@ -146,9 +153,21 @@ proc pointers() {
     global_ptr^ += 13;
     assert(global_var == 13);
     assert(global_var == global_ptr^);
+
+    var v: Vector3;
+    var y_ptr = &v.y;
+    y_ptr^ = 149;
+    assert(v.y == 149);
 }
 
+var global_var_with_init = 21;
+var v: Vector3;
+
 proc main() {
+    assert(global_var_with_init == 21);
+    v.z = 123;
+    assert(v.z == 123);
+
     things();
     int_sizes();
     type_alias();

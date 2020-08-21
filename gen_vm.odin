@@ -5,15 +5,8 @@ import "core:reflect"
 translate_ir_to_vm :: proc(ir: ^IR_Result) -> ^VM {
     vm := make_vm();
 
-    for variable in ir.global_variables {
-        address := vm_allocate_static_storage(vm, cast(int)variable.type.size, cast(int)variable.type.align);
-        assert(address != 0);
-        // weird that we have to do this pointery thing
-        storage := &variable.storage.kind.(Global_Storage);
-        storage.address = cast(u64)address;
-    }
-
     for procedure in ir.procedures {
+        // :EntryPoint
         if procedure.name == "main" {
             vm.entry_point = cast(u64)len(vm.instructions);
         }
@@ -31,16 +24,24 @@ gen_vm_load_from_storage :: proc(vm: ^VM, procedure: ^IR_Proc, dst: Register, st
             gen_vm_load_from_pointer(vm, procedure, dst, .rt, cast(u64)storage.type_stored.size);
         }
         case Global_Storage: {
-            assert(kind.address != 0);
-            add_instruction(vm, MOVI{.rt, cast(i64)kind.address}); // todo(josh): this kind.address could probably be an immediate
+            add_instruction(vm, MOVI{.rt, VM_GLOBAL_STORAGE_BEGIN + cast(i64)kind.offset}); // todo(josh): this kind.offset could probably be an immediate
             gen_vm_load_from_pointer(vm, procedure, dst, .rt, cast(u64)storage.type_stored.size);
         }
         case Indirect_Storage: {
-            gen_vm_load_from_storage(vm, procedure, dst, kind.storage_of_pointer);
-            gen_vm_load_from_pointer(vm, procedure, dst, dst, cast(u64)kind.storage_of_pointer.type_stored.kind.(Type_Ptr).ptr_to.size);
+            #partial
+            switch pointer_storage in kind.storage_of_pointer.kind {
+                case Register_Storage: {
+                    // for handling rvalues that produce a pointer like (&foo)^
+                    gen_vm_load_from_pointer(vm, procedure, dst, VM_REGISTER(pointer_storage.register), cast(u64)kind.storage_of_pointer.type_stored.kind.(Type_Ptr).ptr_to.size);
+                }
+                case: {
+                    gen_vm_load_from_storage(vm, procedure, dst, kind.storage_of_pointer);
+                    gen_vm_load_from_pointer(vm, procedure, dst, dst, cast(u64)kind.storage_of_pointer.type_stored.kind.(Type_Ptr).ptr_to.size);
+                }
+            }
         }
         case Register_Storage: {
-            panic("what does this mean");
+            panic("This is would mean a stupid register copy, please handle the case at the call-site where `storage` is already a register.");
         }
         case: panic(tprint(storage));
     }
@@ -56,25 +57,33 @@ gen_vm_load_from_pointer :: proc(vm: ^VM, procedure: ^IR_Proc, dst: Register, pt
     }
 }
 
-gen_vm_store_to_storage :: proc(vm: ^VM, procedure: ^IR_Proc, src: Register, storage: ^IR_Storage) {
-    switch storage_kind in storage.kind {
+gen_vm_store_to_storage :: proc(vm: ^VM, procedure: ^IR_Proc, dst: ^IR_Storage, src: Register) {
+    switch storage_kind in dst.kind {
         case Stack_Frame_Storage: {
-            add_instruction(vm, ADDI{.rt, .rfp, -cast(i64)(storage_kind.offset_in_stack_frame + cast(u64)storage.type_stored.size)});
-            gen_vm_store_to_pointer(vm, procedure, .rt, src, cast(u64)storage.type_stored.size);
+            add_instruction(vm, ADDI{.rt, .rfp, -cast(i64)(storage_kind.offset_in_stack_frame + cast(u64)dst.type_stored.size)});
+            gen_vm_store_to_pointer(vm, procedure, .rt, src, cast(u64)dst.type_stored.size);
         }
         case Global_Storage: {
-            assert(storage_kind.address != 0);
-            add_instruction(vm, MOVI{.rt, cast(i64)storage_kind.address});
-            gen_vm_store_to_pointer(vm, procedure, .rt, src, cast(u64)storage.type_stored.size);
+            add_instruction(vm, MOVI{.rt, VM_GLOBAL_STORAGE_BEGIN + cast(i64)storage_kind.offset});
+            gen_vm_store_to_pointer(vm, procedure, .rt, src, cast(u64)dst.type_stored.size);
         }
         case Indirect_Storage: {
-            gen_vm_load_from_storage(vm, procedure, .rt, storage_kind.storage_of_pointer);
-            gen_vm_store_to_pointer(vm, procedure, .rt, src, cast(u64)storage.type_stored.size);
+            #partial
+            switch pointer_storage in storage_kind.storage_of_pointer.kind {
+                case Register_Storage: {
+                    // for handling rvalues that produce a pointer like (&foo)^
+                    gen_vm_store_to_pointer(vm, procedure, VM_REGISTER(pointer_storage.register), src, cast(u64)dst.type_stored.size);
+                }
+                case: {
+                    gen_vm_load_from_storage(vm, procedure, .rt, storage_kind.storage_of_pointer);
+                    gen_vm_store_to_pointer(vm, procedure, .rt, src, cast(u64)dst.type_stored.size);
+                }
+            }
         }
         case Register_Storage: {
-            panic("what does this mean");
+            panic("what does this mean, storing to a register? sounds wack");
         }
-        case: panic(tprint(storage));
+        case: panic(tprint(dst));
     }
 }
 
@@ -87,6 +96,55 @@ gen_vm_store_to_pointer :: proc(vm: ^VM, procedure: ^IR_Proc, dst_ptr: Register,
         case: panic("too big");
     }
 }
+
+/*
+gen_vm_copy :: proc(vm: ^VM, dst: ^IR_Storage, src: ^IR_Storage) {
+    switch dst_kind in dst.kind {
+        case Register_Storage: {
+            switch src_kind in src.kind {
+                case Register_Storage: {
+                    add_instruction(vm, MOV{VM_REGISTER(dst_kind.register), VM_REGISTER(src_kind.register)});
+                }
+                case Stack_Frame_Storage: {
+                    add_instruction(vm, ADDI{.rt, .rfp, -cast(i64)(src_kind.offset_in_stack_frame + cast(u64)src.type_stored.size)});
+                    gen_vm_load_from_pointer(vm, VM_REGISTER(dst_kind.register), .rt, cast(u64)src.type_stored.size);
+                }
+                case Global_Storage: {
+                    assert(src_kind.address != 0);
+                    add_instruction(vm, MOVI{.rt, VM_GLOBAL_STORAGE_BEGIN + cast(i64)src_kind.address}); // todo(josh): this src_kind.address could probably be an immediate
+                    gen_vm_load_from_pointer(vm, VM_REGISTER(dst_kind.register), .rt, cast(u64)src.type_stored.size);
+                }
+                case Indirect_Storage: {
+                    gen_vm_copy(vm, dst, src_kind.storage_of_pointer);
+                    gen_vm_load_from_pointer(vm, VM_REGISTER(dst_kind.register), VM_REGISTER(dst_kind.register), cast(u64)src_kind.storage_of_pointer.type_stored.kind.(Type_Ptr).ptr_to.size);
+                }
+                case: panic("");
+            }
+        }
+        case Stack_Frame_Storage: {
+            switch src_kind in src.kind {
+                case Register_Storage: {
+                    add_instruction(vm, ADDI{.rt, .rfp, -cast(i64)(dst_kind.offset_in_stack_frame + cast(u64)dst.type_stored.size)});
+                    gen_vm_store_to_pointer(vm, .rt, VM_REGISTER(src_kind.register), cast(u64)dst.type_stored.size);
+                }
+                case Stack_Frame_Storage: {
+                }
+                case Global_Storage: {
+                }
+                case Indirect_Storage: {
+                }
+                case: panic("");
+            }
+        }
+        case Global_Storage: {
+
+        }
+        case Indirect_Storage: {
+
+        }
+    }
+}
+*/
 
 gen_vm_proc :: proc(vm: ^VM, procedure: ^IR_Proc) {
     // header
@@ -106,6 +164,7 @@ gen_vm_proc :: proc(vm: ^VM, procedure: ^IR_Proc) {
     vm_comment(vm, "body");
     gen_vm_block(vm, procedure, procedure.block);
 
+    // :EntryPoint
     if procedure.name == "main" {
         // :CallingConvention
         vm_comment(vm, "special sauce for main()");
@@ -149,7 +208,7 @@ gen_vm_block :: proc(vm: ^VM, procedure: ^IR_Proc, block: ^IR_Block) {
                     case: panic(tprint(val));
                 }
             }
-            case IR_Store: gen_vm_store_to_storage(vm, procedure, VM_REGISTER(kind.reg.register), kind.storage);
+            case IR_Store: gen_vm_store_to_storage(vm, procedure, kind.storage, VM_REGISTER(kind.reg.register));
             case IR_Load:  gen_vm_load_from_storage(vm, procedure, VM_REGISTER(kind.dst.register), kind.storage);
             case IR_Binop: {
                 switch kind.op {
@@ -253,7 +312,7 @@ gen_vm_block :: proc(vm: ^VM, procedure: ^IR_Proc, block: ^IR_Block) {
             case IR_Take_Address: {
                 switch storage_kind in kind.storage_to_take_address_of.kind {
                     case Global_Storage: {
-                        add_instruction(vm, MOVI{VM_REGISTER(kind.dst.register), cast(i64)storage_kind.address});
+                        add_instruction(vm, MOVI{VM_REGISTER(kind.dst.register), VM_GLOBAL_STORAGE_BEGIN + cast(i64)storage_kind.offset});
                     }
                     case Stack_Frame_Storage: {
                         add_instruction(vm, ADDI{VM_REGISTER(kind.dst.register), .rfp, -cast(i64)(storage_kind.offset_in_stack_frame + cast(u64)kind.storage_to_take_address_of.type_stored.size)});

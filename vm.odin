@@ -6,13 +6,14 @@ import "core:strings"
 
 // todo(josh): graphical debugger
 
+VM_TOTAL_MEMORY :: 16 * 1024 * 1024; // 16 megabytes
+VM_STACK_SIZE   ::  2 * 1024 * 1024; // 2 megabytes
+VM_GLOBAL_STORAGE_BEGIN :: VM_STACK_SIZE;
 VM :: struct {
     instructions: [dynamic]Instruction,
     entry_point: u64,
     memory: []byte,
     registers: [Register]u64,
-    persistent_storage_begin: u64,
-    persistent_storage_watermark: int,
 
     label_mapping: map[string]u64,
     label_mapping_from_ip: map[u64]string,
@@ -235,87 +236,6 @@ PRINT_REG :: struct {
 
 // division requires signed instructions
 
-test_vm :: proc() {
-    vm := make_vm();
-
-    /*
-    int factorial(int n) {
-        if (n != 1) {
-            return n * factorial(n-1);
-        }
-        return 1;
-    }
-    */
-
-    {
-        assert(false);
-        // function_header(vm, "main");
-
-        // save our things
-        add_instruction(vm, PUSH{.rfp});
-        add_instruction(vm, PUSH{.ra});
-
-        // push a parameter
-        add_instruction(vm, MOVI{.r1, 6});
-        add_instruction(vm, PUSH{.r1});
-
-        // call square
-        call(vm, "factorial");
-
-        // pop return value
-        add_instruction(vm, POP{.r1});
-
-        // pop saved registers
-        add_instruction(vm, POP{.ra});
-        add_instruction(vm, POP{.rfp});
-
-        add_instruction(vm, PRINT_REG{.r1});
-
-        // exit
-        add_instruction(vm, EXIT{});
-    }
-
-    {
-        assert(false);
-        // function_header(vm, "factorial");
-
-        add_instruction(vm, POP{.r1});           // pop param
-
-        // if (n != 1)
-        add_instruction(vm, MOVI{.r2, 1});
-        add_instruction(vm, EQ{.r3, .r1, .r2});
-        add_instruction(vm, GOTOIF{.r3, "base_case"});
-
-        // n-1
-        add_instruction(vm, ADDI{.r2, .r1, -1});
-
-        // factorial()
-        add_instruction(vm, PUSH{.r1});  // save our r1
-        add_instruction(vm, PUSH{.rfp}); // save rfp and ra
-        add_instruction(vm, PUSH{.ra});
-
-        // push param
-        add_instruction(vm, PUSH{.r2});
-        call(vm, "factorial");
-
-        add_instruction(vm, POP{.r2});
-        add_instruction(vm, POP{.ra});
-        add_instruction(vm, POP{.rfp});
-        add_instruction(vm, POP{.r1});
-
-        add_instruction(vm, MUL{.r1, .r1, .r2});
-        add_instruction(vm, PUSH{.r1});          // push it as return value
-
-        ret(vm);
-
-        label(vm, "base_case");
-        add_instruction(vm, PUSH{.r1});          // push it as return value
-        ret(vm);
-    }
-
-    execute_vm(vm);
-}
-
 call :: proc(vm: ^VM, label: string) {
     add_instruction(vm, JUMP{label});
 }
@@ -326,10 +246,8 @@ ret :: proc(vm: ^VM) {
 
 make_vm :: proc() -> ^VM {
     vm := new(VM);
-    vm.memory = make([]byte, mem.megabytes(10));
-    vm.persistent_storage_begin = transmute(u64)mem.megabytes(1);
-    vm.registers[.rsp] = vm.persistent_storage_begin;
-    vm.persistent_storage_watermark = cast(int)vm.persistent_storage_begin;
+    vm.memory = make([]byte, VM_TOTAL_MEMORY);
+    vm.registers[.rsp] = VM_GLOBAL_STORAGE_BEGIN;
     return vm;
 }
 
@@ -355,17 +273,13 @@ vm_comment :: proc(vm: ^VM, comment: string) {
     append(arr, comment);
 }
 
-vm_allocate_static_storage :: proc(vm: ^VM, size: int, align: int) -> int {
-    // todo(josh): make sure that the stack never writes to the place it starts at
-    offset := vm.persistent_storage_watermark;
-    offset = align_forward_int(offset, align);
-    vm.persistent_storage_watermark = offset + size;
-    return offset;
+vm_translate_global_storage_offset :: proc(offset: u64) -> u64 {
+    return VM_GLOBAL_STORAGE_BEGIN + offset;
 }
 
 execute_vm :: proc(vm: ^VM) {
     for instruction, idx in vm.instructions {
-        when false {
+        when true {
             if cast(u64)idx in vm.label_mapping_from_ip {
                 fmt.printf("%s:\n", vm.label_mapping_from_ip[cast(u64)idx]);
             }
