@@ -153,7 +153,9 @@ generate_ir :: proc() -> ^IR_Result {
             #partial
             switch kind in &node.kind {
                 case Ast_Var: {
-                    gen_ir_var(ir, &kind, nil);
+                    ir_var := make_ir_var(&kind, cast(^IR_Storage)ir_allocate_global_storage(ir, kind.type));
+                    append(&ir.global_variables, ir_var);
+
                 }
             }
         }
@@ -180,32 +182,27 @@ generate_ir :: proc() -> ^IR_Result {
     return ir;
 }
 
-gen_ir_var :: proc(ir: ^IR_Result, var: ^Ast_Var, procedure: ^IR_Proc) -> ^IR_Var {
-    make_ir_var :: proc(var: ^Ast_Var, storage: ^IR_Storage) -> ^IR_Var {
-        var.storage = storage;
-        ir_var := new(IR_Var);
-        assert(var.type != nil);
-        ir_var.type = var.type;
-        ir_var.storage = storage;
-        return ir_var;
-    }
+ir_allocate_global_storage :: proc(ir: ^IR_Result, type: ^Type) -> ^Global_Storage {
+    offset := cast(u64)mem.align_forward_int(ir.global_storage_offset, type.align);
+    storage := make_ir_storage(Global_Storage{offset}, type);
+    ir.global_storage_offset = cast(int)offset + type.size;
+    return storage;
+}
 
-    if procedure == nil {
-        offset := cast(u64)mem.align_forward_int(ir.global_storage_offset, var.type.align);
-        ir_var := make_ir_var(var, cast(^IR_Storage)make_ir_storage(Global_Storage{offset}, var.type));
-        ir.global_storage_offset = cast(int)offset + ir_var.type.size;
-        append(&ir.global_variables, ir_var);
-        return ir_var;
-    }
-    else {
-        stack_alignment := cast(u64)mem.align_forward_int(cast(int)procedure.stack_frame_size, var.type.align);
-        ir_var := make_ir_var(var, cast(^IR_Storage)make_ir_storage(Stack_Frame_Storage{procedure, stack_alignment}, var.type));
-        procedure.stack_frame_size = stack_alignment + cast(u64)ir_var.type.size;
-        ir_var.procedure = procedure;
-        return ir_var;
-    }
+ir_allocate_stack_storage :: proc(procedure: ^IR_Proc, type: ^Type) -> ^Stack_Frame_Storage {
+    stack_alignment := cast(u64)mem.align_forward_int(cast(int)procedure.stack_frame_size, type.align);
+    storage := make_ir_storage(Stack_Frame_Storage{procedure, stack_alignment}, type);
+    procedure.stack_frame_size = stack_alignment + cast(u64)type.size;
+    return storage;
+}
 
-    unreachable();
+make_ir_var :: proc(var: ^Ast_Var, storage: ^IR_Storage) -> ^IR_Var {
+    var.storage = storage;
+    ir_var := new(IR_Var);
+    assert(var.type != nil);
+    ir_var.type = var.type;
+    ir_var.storage = storage;
+    return ir_var;
 }
 
 gen_ir_proc :: proc(ir: ^IR_Result, ast_procedure: ^Ast_Proc) -> ^IR_Proc {
@@ -221,7 +218,8 @@ gen_ir_proc :: proc(ir: ^IR_Result, ast_procedure: ^Ast_Proc) -> ^IR_Proc {
     append(&ir.procedures, ir_procedure);
 
     for var in ast_procedure.variables {
-        ir_var := gen_ir_var(ir, var, ir_procedure);
+        ir_var := make_ir_var(var, cast(^IR_Storage)ir_allocate_stack_storage(ir_procedure, var.type));
+        ir_var.procedure = ir_procedure;
         if var.is_parameter {
             append(&ir_procedure.parameters, ir_var);
         }
@@ -377,7 +375,11 @@ get_storage_for_expr :: proc(procedure: ^IR_Proc, expr: ^Ast_Expr, loc := #calle
             }
         }
         case Expr_Address_Of: {
-            return cast(^IR_Storage)gen_ir_expr(procedure, expr);
+            address := gen_ir_expr(procedure, expr);
+            stack_storage := cast(^IR_Storage)ir_allocate_stack_storage(procedure, expr.type);
+            gen_ir_store(procedure, stack_storage, address);
+            free_register(procedure, address);
+            return stack_storage;
         }
         case Expr_Dereference: {
             root_storage := get_storage_for_expr(procedure, kind.lhs);

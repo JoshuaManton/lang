@@ -130,9 +130,8 @@ proc pointers() {
     var some_int = 123;
     assert(some_int == 123);
 
-    // todo(josh): this leaks registers
-    // (&some_int)^ = 442;
-    // assert(some_int == 442);
+    (&some_int)^ = 442;
+    assert(some_int == 442);
 
     var thing = (&some_int)^;
     assert(thing == some_int);
