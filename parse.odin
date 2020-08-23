@@ -1,6 +1,7 @@
 package main
 
 import "core:fmt"
+import "core:os"
 import "core:strings"
 import "core:strconv"
 
@@ -10,20 +11,32 @@ current_scope: ^Ast_Scope;
 current_procedure: ^Ast_Proc;
 current_loop_scope: ^Ast_Scope; // todo(josh): put this in Ast_Scope? Ast_Proc _would_ work but #run can exist outside of procedures
 
+files_to_parse: [dynamic]string;
+
 init_parser :: proc() {
     global_scope = make_node(Ast_Scope);
     assert(current_scope == nil);
     current_scope = global_scope;
 }
 
-parse_file :: proc(lexer: ^Lexer, filename: string) -> ^Ast_File {
-    assert(global_scope != nil);
-    scope := parse_scope(lexer);
-    file := make_node(Ast_File);
-    file.name = filename;
-    file.block = scope;
-    append(&global_scope.nodes, NODE(file));
-    return file;
+begin_parsing :: proc(root_filename: string) {
+    append(&files_to_parse, root_filename);
+
+    for len(files_to_parse) > 0 {
+        filename := pop(&files_to_parse);
+        logln(filename);
+        file_data, ok := os.read_entire_file(filename); // note(josh): we leak the file data because we slice into it for tokens
+        assert(ok);
+        lexer := make_lexer(transmute(string)file_data);
+
+        assert(global_scope != nil);
+        assert(current_scope == global_scope);
+        scope := parse_scope(&lexer);
+        append(&global_scope.nodes, NODE(scope));
+        for decl in scope.declarations {
+            append(&global_scope.declarations, decl);
+        }
+    }
 }
 
 parse_scope :: proc(lexer: ^Lexer, push_loop_scope := false) -> ^Ast_Scope {
@@ -94,6 +107,15 @@ parse_single_statement :: proc(lexer: ^Lexer) -> ^Ast_Node {
                 assert(current_loop_scope != nil);
                 break_node.scope_to_break = current_loop_scope;
                 return NODE(break_node);
+            }
+            case .Directive_Include: {
+                get_next_token(lexer);
+                filename_with_quotes := expect(lexer, .String);
+                filename := filename_with_quotes.slice[1:len(filename_with_quotes.slice)-1];
+                append(&files_to_parse, filename);
+                include_node := make_node(Ast_Include);
+                include_node.filename = filename;
+                return NODE(include_node);
             }
             case: {
                 root_expr := parse_expr(lexer);
@@ -722,8 +744,8 @@ unary_operator :: proc(t: Token_Kind, loc := #caller_location) -> Operator {
 NODE_MAGIC :: 273628378;
 Ast_Node :: struct {
     kind: union {
-        Ast_File,
         Ast_Scope,
+        Ast_Include,
         Ast_Var,
         Ast_Proc,
         Ast_Struct,
@@ -767,10 +789,10 @@ NODE :: proc(k: ^$T) -> ^Ast_Node {
     return n;
 }
 
-Ast_File :: struct {
-    name: string,
-    block: ^Ast_Scope,
-}
+// Ast_File :: struct {
+//     name: string,
+//     block: ^Ast_Scope,
+// }
 
 Ast_Scope :: struct {
     parent: ^Ast_Scope,
@@ -778,6 +800,10 @@ Ast_Scope :: struct {
     declarations: [dynamic]^Declaration,
     all_defers: [dynamic]^Ast_Defer,
     defer_stack: [dynamic]^Ast_Defer,
+}
+
+Ast_Include :: struct {
+    filename: string,
 }
 
 Ast_Var :: struct {

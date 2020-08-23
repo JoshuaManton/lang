@@ -6,6 +6,7 @@ import "core:strings"
 
 // todo(josh): graphical debugger
 
+VM_DEBUG_PRINT :: false;
 VM_TOTAL_MEMORY :: 16 * 1024 * 1024; // 16 megabytes
 VM_STACK_SIZE   ::  2 * 1024 * 1024; // 2 megabytes
 VM_GLOBAL_STORAGE_BEGIN :: VM_STACK_SIZE;
@@ -279,7 +280,7 @@ vm_translate_global_storage_offset :: proc(offset: u64) -> u64 {
 
 execute_vm :: proc(vm: ^VM) {
     for instruction, idx in vm.instructions {
-        when true {
+        when VM_DEBUG_PRINT {
             if cast(u64)idx in vm.label_mapping_from_ip {
                 fmt.printf("%s:\n", vm.label_mapping_from_ip[cast(u64)idx]);
             }

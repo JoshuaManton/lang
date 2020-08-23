@@ -1,15 +1,4 @@
-proc __trap() #foreign;
-proc __print_int(n: int) #foreign;
-
-proc print(n: int) {
-    __print_int(n);
-}
-
-proc assert(condition: bool) {
-    if (condition == false) {
-        __trap();
-    }
-}
+#include "basic.lang"
 
 var aa: int;
 var bb: int;

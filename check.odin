@@ -164,10 +164,6 @@ get_or_make_type_array_of :: proc(type: ^Type, length: int) -> ^Type_Array {
     return make_type(Type_Array{type, length}, type.size * length);
 }
 
-typecheck_file :: proc(file: ^Ast_File) {
-    typecheck_scope(file.block);
-}
-
 typecheck_scope :: proc(scope: ^Ast_Scope) {
     for node in scope.nodes {
         typecheck_node(node);
@@ -176,7 +172,6 @@ typecheck_scope :: proc(scope: ^Ast_Scope) {
 
 typecheck_node :: proc(node: ^Ast_Node) {
     switch kind in &node.kind {
-        case Ast_File:           typecheck_file(&kind);
         case Ast_Scope:          typecheck_scope(&kind);
         case Ast_Var:            typecheck_var(&kind);        assert(kind.type != nil);
         case Ast_Proc:           typecheck_proc(&kind);       assert(kind.type != nil);
@@ -189,6 +184,7 @@ typecheck_node :: proc(node: ^Ast_Node) {
         case Ast_Assign:         typecheck_assign(&kind);
         case Ast_Defer:          typecheck_defer(&kind);
         case Ast_Identifier:     assert(kind.resolved_declaration != nil);
+        case Ast_Include:        // do nothing
         case Ast_Continue:       // do nothing
         case Ast_Break:          // do nothing
         case Ast_Expr:     panic("there should be no Ast_Exprs here, only Ast_Expr_Statements");

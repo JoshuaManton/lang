@@ -148,35 +148,35 @@ generate_ir :: proc() -> ^IR_Result {
 
     // make all global variables
     for node in global_scope.nodes {
-        file := node.kind.(Ast_File);
-        for node in file.block.nodes {
-            #partial
-            switch kind in &node.kind {
-                case Ast_Var: {
-                    ir_var := make_ir_var(&kind, cast(^IR_Storage)ir_allocate_global_storage(ir, kind.type));
-                    append(&ir.global_variables, ir_var);
+    	scope := &node.kind.(Ast_Scope);
+    	for node in scope.nodes {
+    		#partial
+	        switch kind in &node.kind {
+	            case Ast_Var: {
+	                ir_var := make_ir_var(&kind, cast(^IR_Storage)ir_allocate_global_storage(ir, kind.type));
+	                append(&ir.global_variables, ir_var);
 
-                }
-            }
-        }
+	            }
+	        }
+    	}
     }
 
     // make all global procedures
     for node in global_scope.nodes {
-        file := node.kind.(Ast_File);
-        for node in file.block.nodes {
-            #partial
-            switch kind in &node.kind {
-                case Ast_Proc: {
-                    if !kind.is_foreign {
-                        gen_ir_proc(ir, &kind);
-                    }
-                    else {
-                        assert(kind.name == "__trap" || kind.name == "__print_int");
-                    }
-                }
-            }
-        }
+    	scope := &node.kind.(Ast_Scope);
+    	for node in scope.nodes {
+    		#partial
+	        switch kind in &node.kind {
+	            case Ast_Proc: {
+	                if !kind.is_foreign {
+	                    gen_ir_proc(ir, &kind);
+	                }
+	                else {
+	                    assert(kind.name == "__trap" || kind.name == "__print_int");
+	                }
+	            }
+	        }
+    	}
     }
 
     return ir;
@@ -285,11 +285,11 @@ gen_ir_statement :: proc(ir: ^IR_Result, procedure: ^IR_Proc, node: ^Ast_Node) {
         case Ast_Continue:       panic("Ast_Continue");
         case Ast_Break:          panic("Ast_Break");
 
-        case Ast_Defer:  // skip, handled separately in gen_ir_scope()
-        case Ast_Struct: // skip, no need for IR for structs
+        case Ast_Defer:      // skip, handled separately in gen_ir_scope()
+        case Ast_Struct:     // skip, no IR needed
+        case Ast_Include:    // skip, no IR needed
         case Ast_Expr:       panic("Shouldn't be any expressions at statement level.");
         case Ast_Identifier: panic("Shouldn't be any identifiers at statement level.");
-        case Ast_File: panic(tprint(stmt));
         case: panic(tprint(stmt));
     }
 }

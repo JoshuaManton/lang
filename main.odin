@@ -15,12 +15,8 @@ main :: proc() {
     init_parser();
     init_types();
 
-    file_data, ok := os.read_entire_file(os.args[1]);
-    defer delete(file_data);
-    assert(ok);
-    lexer := make_lexer(transmute(string)file_data);
     fmt.println("Parsing...");
-    file := parse_file(&lexer, os.args[1]);
+    begin_parsing(os.args[1]);
     fmt.println("Resolving identifiers...");
     resolve_identifiers();
     fmt.println("Checking types...");
@@ -169,6 +165,7 @@ pretty_print :: logging.pretty_print;
 
 println :: fmt.println;
 tprint :: fmt.tprint;
+aprint :: fmt.aprint;
 
 Maybe :: union(T: typeid) {
     T,

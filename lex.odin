@@ -69,7 +69,7 @@ get_next_token :: proc(lexer: ^Lexer) -> (Token, int, bool) {
         case '#': {
             token = tokens(lexer,
                 {"#foreign", .Directive_Foreign},
-                {"#include", .Directive_Include}
+                {"#include", .Directive_Include},
             );
         }
         case: {
@@ -111,7 +111,7 @@ expect :: proc(lexer: ^Lexer, kind: Token_Kind, loc := #caller_location) -> Toke
 tokens :: proc(lexer: ^Lexer, tokens: ..Token) -> Token {
     longest := tokens[0];
     token_loop: for t in tokens {
-        if len(t.slice) <= len(longest.slice) do continue;
+        // if len(t.slice) <= len(longest.slice) do continue;
         for i in 0..<len(t.slice) {
             if lexer.text[i] != t.slice[i] do continue token_loop;
         }

@@ -1,0 +1,4 @@
+#include "basic.lang"
+
+proc main() {
+}
