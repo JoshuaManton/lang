@@ -24,7 +24,6 @@ begin_parsing :: proc(root_filename: string) {
 
     for len(files_to_parse) > 0 {
         filename := pop(&files_to_parse);
-        logln(filename);
         file_data, ok := os.read_entire_file(filename); // note(josh): we leak the file data because we slice into it for tokens
         assert(ok);
         lexer := make_lexer(transmute(string)file_data);
@@ -78,7 +77,6 @@ parse_single_statement :: proc(lexer: ^Lexer) -> ^Ast_Node {
         switch token.kind {
             case .Var:    return NODE(parse_var(lexer, true));
             case .Const:  return NODE(parse_var(lexer, true));
-
             case .Proc:   return NODE(parse_proc(lexer));
             case .Struct: return NODE(parse_struct(lexer));
             case .Return: return NODE(parse_return(lexer));
@@ -151,38 +149,35 @@ parse_single_statement :: proc(lexer: ^Lexer) -> ^Ast_Node {
 }
 
 parse_var :: proc(lexer: ^Lexer, require_semicolon: bool) -> ^Ast_Var {
-    is_const := false;
+    var := make_node(Ast_Var);
+
     if _, ok := peek_kind(lexer, .Var); ok {
         get_next_token(lexer);
     }
     else if _, ok := peek_kind(lexer, .Const); ok {
         get_next_token(lexer);
-        is_const = true;
+        var.is_const = true;
     }
 
     name_token := expect(lexer, .Identifier);
+    var.name = name_token.slice;
 
-    typespec: ^Expr_Typespec;
     if _, ok := peek_kind(lexer, .Colon); ok {
         expect(lexer, .Colon);
-        typespec = parse_typespec(lexer);
+        var.typespec = parse_expr(lexer);
     }
 
-    expr: ^Ast_Expr;
     if _, ok := peek_kind(lexer, .Assign); ok {
         get_next_token(lexer);
-        expr = parse_expr(lexer);
+        var.expr = parse_expr(lexer);
+    }
+    else {
+        assert(!var.is_const, "Constant variables require an expression.");
     }
 
     if require_semicolon {
         expect(lexer, .Semicolon);
     }
-
-    var := make_node(Ast_Var);
-    var.name = name_token.slice;
-    var.typespec = typespec;
-    var.expr = expr;
-    var.is_const = is_const;
 
     if current_procedure != nil {
         append(&current_procedure.variables, var);
@@ -207,7 +202,9 @@ parse_typespec :: proc(lexer: ^Lexer) -> ^Expr_Typespec {
             typespec.kind = Typespec_Identifier{ident};
             queue_identifier_for_resolving(ident);
         }
-        case .Caret: typespec.kind = Typespec_Ptr{parse_typespec(lexer)};
+        case .Caret: {
+            typespec.kind = Typespec_Ptr{parse_typespec(lexer)};
+        }
         case .LSquare: {
             next, ok := peek(lexer);
             assert(ok);
@@ -741,6 +738,21 @@ unary_operator :: proc(t: Token_Kind, loc := #caller_location) -> Operator {
     unreachable();
 }
 
+Node_Dependency :: struct {
+    depends_on: ^Ast_Node,
+    type: Depend_Type,
+}
+
+Depend_Type :: enum {
+    Size,
+    Full,
+}
+
+node_depend :: proc(node: ^Ast_Node, depends_on: ^Ast_Node, type: Depend_Type) {
+    append(&node.dependencies, Node_Dependency{depends_on, type});
+    append(&depends_on.nodes_that_depend_on_this_node, node);
+}
+
 NODE_MAGIC :: 273628378;
 Ast_Node :: struct {
     kind: union {
@@ -765,7 +777,11 @@ Ast_Node :: struct {
     s: int,
     enclosing_scope: ^Ast_Scope,
     enclosing_procedure: ^Ast_Proc,
+    dependencies: [dynamic]Node_Dependency,
+    nodes_that_depend_on_this_node: [dynamic]^Ast_Node,
 }
+
+nodes_to_typecheck: [dynamic]^Ast_Node;
 
 last_node_serial: int;
 make_node :: proc($T: typeid) -> ^T {
@@ -780,6 +796,7 @@ make_node :: proc($T: typeid) -> ^T {
         expr := &node.kind.(Ast_Expr);
         expr.magic = EXPR_MAGIC;
     }
+    append(&nodes_to_typecheck, node);
     return cast(^T)node;
 }
 
@@ -808,7 +825,7 @@ Ast_Include :: struct {
 
 Ast_Var :: struct {
     name: string,
-    typespec: ^Expr_Typespec,
+    typespec: ^Ast_Expr,
     expr: ^Ast_Expr,
     type: ^Type,
     is_type_alias_for: ^Type,
@@ -911,9 +928,7 @@ Ast_Expr :: struct {
         Expr_Typespec,
     },
     magic: int,
-    type: ^Type,
-    mode: Addressing_Mode,
-    constant_value: Constant_Value,
+    checked: Checked_Expr,
 }
 
 make_expr :: proc(k: $T) -> ^T {

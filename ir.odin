@@ -266,7 +266,7 @@ gen_ir_statement :: proc(ir: ^IR_Result, procedure: ^IR_Proc, node: ^Ast_Node) {
         }
         case Ast_Expr_Statement: {
             reg := gen_ir_expr(procedure, stmt.expr, true);
-            if stmt.expr.mode != .No_Value {
+            if stmt.expr.checked.mode != .No_Value {
                 free_register(procedure, reg); // :^)
             }
         }
@@ -275,7 +275,7 @@ gen_ir_statement :: proc(ir: ^IR_Result, procedure: ^IR_Proc, node: ^Ast_Node) {
             if stmt.expr != nil {
                 reg := gen_ir_expr(procedure, stmt.expr);
                 ret.result_register = reg;
-                ret.type = stmt.expr.type;
+                ret.type = stmt.expr.checked.type;
                 free_register(procedure, reg); // todo(josh): is freeing this immediately the correct thing?
             }
             ir_inst(procedure, ret);
@@ -376,19 +376,19 @@ get_storage_for_expr :: proc(procedure: ^IR_Proc, expr: ^Ast_Expr, loc := #calle
         }
         case Expr_Address_Of: {
             address := gen_ir_expr(procedure, expr);
-            stack_storage := cast(^IR_Storage)ir_allocate_stack_storage(procedure, expr.type);
+            stack_storage := cast(^IR_Storage)ir_allocate_stack_storage(procedure, expr.checked.type);
             gen_ir_store(procedure, stack_storage, address);
             free_register(procedure, address);
             return stack_storage;
         }
         case Expr_Dereference: {
             root_storage := get_storage_for_expr(procedure, kind.lhs);
-            return cast(^IR_Storage)make_ir_storage(Indirect_Storage{root_storage}, kind.lhs.type.kind.(Type_Ptr).ptr_to);
+            return cast(^IR_Storage)make_ir_storage(Indirect_Storage{root_storage}, kind.lhs.checked.type.kind.(Type_Ptr).ptr_to);
         }
         case Expr_Selector: {
             root_storage := get_storage_for_expr(procedure, kind.lhs);
             #partial
-            switch type_kind in kind.lhs.type.kind {
+            switch type_kind in kind.lhs.checked.type.kind {
                 case Type_Struct: {
                     for field, idx in type_kind.fields {
                         if field.name == kind.field {
@@ -429,10 +429,12 @@ get_storage_for_expr :: proc(procedure: ^IR_Proc, expr: ^Ast_Expr, loc := #calle
 }
 
 gen_ir_expr :: proc(procedure: ^IR_Proc, expr: ^Ast_Expr, is_at_statement_level := false) -> ^Register_Storage {
-    if expr.mode == .Constant {
-        assert(expr.constant_value != nil);
-        dst := alloc_register(procedure, expr.type);
-        switch kind in expr.constant_value {
+    assert(expr.checked.mode != .Invalid);
+
+    if expr.checked.mode == .Constant {
+        assert(expr.checked.constant_value != nil);
+        dst := alloc_register(procedure, expr.checked.type);
+        switch kind in expr.checked.constant_value {
             case i64:    ir_inst(procedure, IR_Move_Immediate{dst, kind});
             case f64:    unimplemented();
             case string: unimplemented();
@@ -449,11 +451,11 @@ gen_ir_expr :: proc(procedure: ^IR_Proc, expr: ^Ast_Expr, is_at_statement_level 
             defer free_register(procedure, lhs_reg);
             rhs_reg := gen_ir_expr(procedure, kind.rhs);
             defer free_register(procedure, rhs_reg);
-            return gen_ir_binary(procedure, kind.op, lhs_reg, rhs_reg, expr.type);
+            return gen_ir_binary(procedure, kind.op, lhs_reg, rhs_reg, expr.checked.type);
         }
         case Expr_Identifier: {
             storage := get_storage_for_expr(procedure, expr);
-            dst := alloc_register(procedure, expr.type);
+            dst := alloc_register(procedure, expr.checked.type);
             gen_ir_load(procedure, storage, dst);
             return dst;
         }
@@ -462,7 +464,7 @@ gen_ir_expr :: proc(procedure: ^IR_Proc, expr: ^Ast_Expr, is_at_statement_level 
             for p in kind.params {
                 param: Call_Parameter;
                 param.block = new(IR_Block);
-                param.type = p.type;
+                param.type = p.checked.type;
                 PUSH_IR_BLOCK(param.block);
                 param.result_register = gen_ir_expr(procedure, p);
                 defer free_register(procedure, param.result_register);
@@ -482,15 +484,15 @@ gen_ir_expr :: proc(procedure: ^IR_Proc, expr: ^Ast_Expr, is_at_statement_level 
                 append(&ir_call.registers_to_save, reg);
             }
 
-            if expr.mode == .No_Value {
-                assert(expr.type == nil);
+            if expr.checked.mode == .No_Value {
+                assert(expr.checked.type == nil);
                 assert(is_at_statement_level);
                 ir_inst(procedure, ir_call);
                 return nil;
             }
             else {
-                assert(expr.type != nil);
-                proc_type := &kind.procedure_expr.type.kind.(Type_Proc);
+                assert(expr.checked.type != nil);
+                proc_type := &kind.procedure_expr.checked.type.kind.(Type_Proc);
                 assert(proc_type.return_type != nil);
                 result := alloc_register(procedure, proc_type.return_type);
                 ir_call.result_register = result;
@@ -501,19 +503,19 @@ gen_ir_expr :: proc(procedure: ^IR_Proc, expr: ^Ast_Expr, is_at_statement_level 
         case Expr_Unary: {
             expr_reg := gen_ir_expr(procedure, kind.rhs);
             defer free_register(procedure, expr_reg);
-            dst := alloc_register(procedure, expr.type);
+            dst := alloc_register(procedure, expr.checked.type);
             ir_inst(procedure, IR_Unary{kind.op, dst, expr_reg});
             return dst;
         }
         case Expr_Size_Of: {
             panic("Should have resolved this above as it is a constant.");
-            // dst := alloc_register(procedure, expr.type);
+            // dst := alloc_register(procedure, expr.checked.type);
             // ir_inst(procedure, IR_Move_Immediate{dst, expr.constant_value.(i64)});
             // return dst;
         }
         case Expr_Selector: {
             storage := get_storage_for_expr(procedure, expr);
-            dst := alloc_register(procedure, expr.type);
+            dst := alloc_register(procedure, expr.checked.type);
             gen_ir_load(procedure, storage, dst);
             return dst;
         }
@@ -521,14 +523,14 @@ gen_ir_expr :: proc(procedure: ^IR_Proc, expr: ^Ast_Expr, is_at_statement_level 
             return gen_ir_expr(procedure, kind.expr, is_at_statement_level);
         }
         case Expr_Address_Of: {
-            assert(kind.rhs.mode == .LValue);
-            dst := alloc_register(procedure, expr.type);
+            assert(kind.rhs.checked.mode == .LValue);
+            dst := alloc_register(procedure, expr.checked.type);
             storage := get_storage_for_expr(procedure, kind.rhs);
             ir_inst(procedure, IR_Take_Address{storage, dst});
             return dst;
         }
         case Expr_Dereference: {
-            dst := alloc_register(procedure, expr.type);
+            dst := alloc_register(procedure, expr.checked.type);
             ir_inst(procedure, IR_Load{get_storage_for_expr(procedure, expr), dst});
             return dst;
         }

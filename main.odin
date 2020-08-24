@@ -20,7 +20,7 @@ main :: proc() {
     fmt.println("Resolving identifiers...");
     resolve_identifiers();
     fmt.println("Checking types...");
-    typecheck_node(NODE(global_scope));
+    begin_typechecking();
     fmt.println("Generating IR...");
     ir := generate_ir();
     fmt.println("Translating IR to bytecode...");

@@ -1,0 +1,7 @@
+struct Foo {
+    other: ^Foo;
+}
+
+proc main() {
+    var f: Foo;
+}
