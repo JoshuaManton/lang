@@ -720,8 +720,7 @@ typecheck_expr :: proc(expr: ^Ast_Expr, expected_type: ^Type) -> Checked_Expr {
             }
         }
         case Expr_Identifier: {
-            checked_ident := typecheck_identifier(kind.ident);
-            checked = checked_ident;
+            checked = typecheck_identifier(kind.ident);
         }
         case Expr_Typespec: {
             checked = typecheck_typespec(&kind);
@@ -733,8 +732,7 @@ typecheck_expr :: proc(expr: ^Ast_Expr, expected_type: ^Type) -> Checked_Expr {
         case Expr_True:  checked.type = type_bool; checked.mode = .Constant; checked.constant_value = true;
         case Expr_False: checked.type = type_bool; checked.mode = .Constant; checked.constant_value = false;
         case Expr_Paren: {
-            checked_expr := typecheck_expr(kind.expr, expected_type);
-            checked = checked_expr;
+            checked = typecheck_expr(kind.expr, expected_type);
         }
         case: panic(tprint(expr));
     }
