@@ -96,25 +96,48 @@ typecheck_node :: proc(node: ^Ast_Node) {
     }
 }
 
-/*
-typecheck_identifier :: proc(ident: ^Ast_Identifier) {
+typecheck_identifier :: proc(ident: ^Ast_Identifier) -> Checked_Expr {
+    checked: Checked_Expr;
     switch decl in ident.resolved_declaration.kind {
-        case Decl_Type:   ident.type = decl.type;
-        case Decl_Struct: ident.type = TYPE(decl.structure.type);
-        case Decl_Proc:   ident.type = TYPE(decl.procedure.type);
-        case Decl_Var:    ident.type = decl.var.type;
-        case: panic(tprint(ident.resolved_declaration));
+        case Decl_Type: {
+            checked.type = type_typeid;
+            checked.mode = .Constant;
+            checked.constant_value = decl.type.id;
+        }
+        case Decl_Struct: {
+            checked.type = type_typeid;
+            checked.mode = .Constant;
+            checked.constant_value = TYPE(decl.structure.type).id;
+        }
+        case Decl_Var: {
+            assert(decl.var.type != nil);
+            checked.type = decl.var.type;
+            if decl.var.is_const {
+                assert(decl.var.constant_value != nil);
+                checked.constant_value = decl.var.constant_value;
+                checked.mode = .Constant;
+            }
+            else {
+                checked.mode = .LValue;
+            }
+        }
+        case Decl_Proc: {
+            assert(decl.procedure.type != nil);
+            checked.type = TYPE(decl.procedure.type);
+            checked.mode = .RValue;
+        }
+        case: panic(tprint(ident));
     }
-    assert(ident.type != nil);
+    assert(checked.type != nil);
+    assert(checked.mode != .Invalid);
+    return checked;
 }
-*/
 
 typecheck_var :: proc(var: ^Ast_Var) {
     declared_type: ^Type;
     expr_type: ^Type;
     if var.typespec != nil {
-        checked := typecheck_expr(var.typespec, nil); // todo(josh): pass type_typeid as expected type?
-        assert(checked.type == type_typeid);
+        checked := typecheck_expr(var.typespec, type_typeid);
         declared_type = all_types[checked.constant_value.(TypeID)];
     }
     if var.expr != nil {
@@ -142,25 +165,15 @@ typecheck_var :: proc(var: ^Ast_Var) {
     }
 }
 
-typecheck_typespec :: proc(typespec: ^Expr_Typespec) {
+typecheck_typespec :: proc(typespec: ^Expr_Typespec) -> Checked_Expr {
     switch kind in &typespec.kind {
         case Typespec_Identifier: {
             assert(kind.ident != nil);
             assert(kind.ident.resolved_declaration != nil);
-            #partial
-            switch decl in kind.ident.resolved_declaration.kind {
-                case Decl_Type:   typespec.type = decl.type;
-                case Decl_Struct: typespec.type = TYPE(decl.structure.type);
-                case Decl_Var: {
-                    if decl.var.is_type_alias_for != nil {
-                        typespec.type = decl.var.is_type_alias_for;
-                    }
-                    else {
-                        panic(fmt.tprint(decl, "used as a type when it is not a type"));
-                    }
-                }
-                case: panic(fmt.tprint(decl, "used as a type when it is not a type"));
-            }
+            checked_ident := typecheck_identifier(kind.ident);
+            assert(checked_ident.type == type_typeid);
+            assert(checked_ident.constant_value != nil);
+            typespec.type = all_types[checked_ident.constant_value.(TypeID)];
         }
         case Typespec_Ptr: {
             typecheck_typespec(kind.ptr_to);
@@ -190,6 +203,7 @@ typecheck_typespec :: proc(typespec: ^Expr_Typespec) {
     checked.type = type_typeid;
     expr := EXPR(typespec);
     expr.checked = checked;
+    return checked;
 }
 
 typecheck_proc :: proc(procedure: ^Ast_Proc) {
@@ -632,34 +646,15 @@ typecheck_expr :: proc(expr: ^Ast_Expr, expected_type: ^Type) -> Checked_Expr {
             checked.mode = .Constant;
         }
         case Expr_Size_Of: {
-            typecheck_expr(kind.thing_to_get_the_size_of, nil);
+            checked_size_of := typecheck_expr(kind.thing_to_get_the_size_of, nil);
             size: int;
-            #partial
-            switch size_of_kind in kind.thing_to_get_the_size_of.kind {
-                case Expr_Typespec: {
-                    size = size_of_kind.type.size;
-                }
-                case Expr_Identifier: {
-                    switch decl_kind in size_of_kind.ident.resolved_declaration.kind {
-                        case Decl_Type: size = decl_kind.type.size;
-                        case Decl_Struct: size = TYPE(decl_kind.structure.type).size;
-                        case Decl_Proc: size = type_rawptr.size;
-                        case Decl_Var: {
-                            if decl_kind.var.is_type_alias_for != nil {
-                                size = decl_kind.var.is_type_alias_for.size;
-                            }
-                            else {
-                                size = decl_kind.var.type.size;
-                            }
-                        }
-                        case: panic(tprint(size_of_kind.ident.resolved_declaration));
-                    }
-                }
-                case: {
-                    panic(tprint(kind.thing_to_get_the_size_of));
-                }
+            if checked_size_of.type == type_typeid {
+                true_type := all_types[checked_size_of.constant_value.(TypeID)];
+                size = true_type.size;
             }
-
+            else {
+                size = checked_size_of.type.size;
+            }
             checked.type = type_int;
             checked.mode = .Constant;
             checked.constant_value = cast(i64)size;
@@ -725,33 +720,11 @@ typecheck_expr :: proc(expr: ^Ast_Expr, expected_type: ^Type) -> Checked_Expr {
             }
         }
         case Expr_Identifier: {
-            switch decl in kind.ident.resolved_declaration.kind {
-                case Decl_Type:   checked.type = type_typeid; checked.mode = .Constant; checked.constant_value = decl.type.id;
-                case Decl_Struct: checked.type = type_typeid; checked.mode = .Constant; checked.constant_value = TYPE(decl.structure.type).id;
-                case Decl_Var: {
-                    assert(decl.var.type != nil);
-                    checked.type = decl.var.type;
-                    if decl.var.is_const {
-                        assert(decl.var.constant_value != nil);
-                        checked.constant_value = decl.var.constant_value;
-                        checked.mode = .Constant;
-                    }
-                    else {
-                        checked.mode = .LValue;
-                    }
-                }
-                case Decl_Proc: {
-                    assert(decl.procedure.type != nil);
-                    checked.type = TYPE(decl.procedure.type);
-                    checked.mode = .RValue;
-                }
-                case: panic(tprint(kind.ident));
-            }
-            assert(checked.type != nil);
-            assert(checked.mode != .Invalid);
+            checked_ident := typecheck_identifier(kind.ident);
+            checked = checked_ident;
         }
         case Expr_Typespec: {
-            typecheck_typespec(&kind);
+            checked = typecheck_typespec(&kind);
         }
         case Expr_Null: {
             checked.mode = .Constant;
