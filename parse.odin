@@ -619,9 +619,8 @@ parse_base_expr :: proc(lexer: ^Lexer) -> ^Ast_Expr {
             get_next_token(lexer);
             ident := make_node(Ast_Identifier);
             ident.name = token.slice;
-            expr := make_expr(Expr_Identifier{ident});
             queue_identifier_for_resolving(ident);
-            return EXPR(expr);
+            return EXPR(make_expr(Expr_Identifier{ident}));
         }
         case .Number: {
             get_next_token(lexer);
@@ -642,7 +641,7 @@ parse_base_expr :: proc(lexer: ^Lexer) -> ^Ast_Expr {
             return EXPR(make_expr(Expr_Paren{nested}));
         }
         case .LSquare, .Caret: {
-            return EXPR(parse_typespec(lexer)); // todo(josh): this stomps on the `expr := make_node(Ast_Expr);` above @Leak
+            return EXPR(parse_typespec(lexer));
         }
         case: {
             unimplemented(fmt.tprint(token));
