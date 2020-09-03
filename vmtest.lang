@@ -11,6 +11,10 @@ proc assert(condition: bool) {
     }
 }
 
+proc panic() {
+    __trap();
+}
+
 var aa: int;
 var bb: int;
 var cc: int;
@@ -110,17 +114,20 @@ proc type_alias() {
 
 proc bool_stuff() {
     var t = 1 == 1;
-    var f = 1 == 2;
+    assert(typeof(t) == bool);
     assert(t == true);
     assert(t);
+
+    var f = 1 == 2;
+    assert(typeof(t) == typeof(f));
     assert(f == false);
     assert(!f);
 
     if (!t) {
-        assert(false);
+        panic();
     }
     if (f) {
-        assert(false);
+        panic();
     }
 }
 
