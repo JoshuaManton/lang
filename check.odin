@@ -659,6 +659,12 @@ typecheck_expr :: proc(expr: ^Ast_Expr, expected_type: ^Type) -> Checked_Expr {
             checked.mode = .Constant;
             checked.constant_value = cast(i64)size;
         }
+        case Expr_Type_Of: {
+            checked_expr := typecheck_expr(kind.thing_to_get_the_type_of, nil);
+            checked.type = type_typeid;
+            checked.mode = .Constant;
+            checked.constant_value = checked_expr.type.id;
+        }
         case Expr_Selector: {
             checked_lhs := typecheck_expr(kind.lhs, nil); // todo(josh): should we pass an expected type here?
             assert(checked_lhs.type != nil);
@@ -696,7 +702,7 @@ typecheck_expr :: proc(expr: ^Ast_Expr, expected_type: ^Type) -> Checked_Expr {
             checked.constant_value = kind.str;
         }
         case Expr_Call: {
-            checked_proc := typecheck_expr(kind.procedure_expr, nil); // todo(josh): should we pass an expected type here?
+            checked_proc := typecheck_expr(kind.procedure_expr, nil);
             assert(checked_proc.type != nil);
             proc_type, ok := checked_proc.type.kind.(Type_Proc);
             assert(ok);

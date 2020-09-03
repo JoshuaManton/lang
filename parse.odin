@@ -526,6 +526,12 @@ parse_unary_expr :: proc(lexer: ^Lexer) -> ^Ast_Expr {
                 expect(lexer, .RParen);
                 expr.kind = Expr_Size_Of{thing_to_get_the_size_of};
             }
+            case .Type_Of: {
+                expect(lexer, .LParen);
+                thing_to_get_the_type_of := parse_expr(lexer);
+                expect(lexer, .RParen);
+                expr.kind = Expr_Type_Of{thing_to_get_the_type_of};
+            }
             case .Ampersand: {
                 rhs := parse_unary_expr(lexer);
                 expr.kind = Expr_Address_Of{rhs};
@@ -691,13 +697,13 @@ unescape_string :: proc(str: string) -> (string, int) {
     return escaped, length;
 }
 
-is_or_op      :: proc(lexer: ^Lexer) -> bool { token, ok := peek(lexer); assert(ok); #partial switch token.kind { case .Or:                                                return true; } return false; }
-is_and_op     :: proc(lexer: ^Lexer) -> bool { token, ok := peek(lexer); assert(ok); #partial switch token.kind { case .And:                                               return true; } return false; }
-is_cmp_op     :: proc(lexer: ^Lexer) -> bool { token, ok := peek(lexer); assert(ok); #partial switch token.kind { case .CMP_BEGIN...CMP_END:                               return true; } return false; }
-is_add_op     :: proc(lexer: ^Lexer) -> bool { token, ok := peek(lexer); assert(ok); #partial switch token.kind { case .ADD_BEGIN...ADD_END:                               return true; } return false; }
-is_mul_op     :: proc(lexer: ^Lexer) -> bool { token, ok := peek(lexer); assert(ok); #partial switch token.kind { case .MUL_BEGIN...MUL_END:                               return true; } return false; }
-is_unary_op   :: proc(lexer: ^Lexer) -> bool { token, ok := peek(lexer); assert(ok); #partial switch token.kind { case .Minus, .Plus, .Ampersand, .Cast, .Size_Of, .Not:   return true; } return false; }
-is_postfix_op :: proc(lexer: ^Lexer) -> bool { token, ok := peek(lexer); assert(ok); #partial switch token.kind { case .LParen, .LSquare, .Period, .Caret:                 return true; } return false; }
+is_or_op      :: proc(lexer: ^Lexer) -> bool { token, ok := peek(lexer); assert(ok); #partial switch token.kind { case .Or:                                                          return true; } return false; }
+is_and_op     :: proc(lexer: ^Lexer) -> bool { token, ok := peek(lexer); assert(ok); #partial switch token.kind { case .And:                                                         return true; } return false; }
+is_cmp_op     :: proc(lexer: ^Lexer) -> bool { token, ok := peek(lexer); assert(ok); #partial switch token.kind { case .CMP_BEGIN...CMP_END:                                         return true; } return false; }
+is_add_op     :: proc(lexer: ^Lexer) -> bool { token, ok := peek(lexer); assert(ok); #partial switch token.kind { case .ADD_BEGIN...ADD_END:                                         return true; } return false; }
+is_mul_op     :: proc(lexer: ^Lexer) -> bool { token, ok := peek(lexer); assert(ok); #partial switch token.kind { case .MUL_BEGIN...MUL_END:                                         return true; } return false; }
+is_unary_op   :: proc(lexer: ^Lexer) -> bool { token, ok := peek(lexer); assert(ok); #partial switch token.kind { case .Minus, .Plus, .Ampersand, .Cast, .Size_Of, .Type_Of, .Not:   return true; } return false; }
+is_postfix_op :: proc(lexer: ^Lexer) -> bool { token, ok := peek(lexer); assert(ok); #partial switch token.kind { case .LParen, .LSquare, .Period, .Caret:                           return true; } return false; }
 
 binary_operator :: proc(t: Token_Kind, loc := #caller_location) -> Operator {
     #partial
@@ -922,6 +928,7 @@ Ast_Expr :: struct {
         Expr_False,
         Expr_Paren,
         Expr_Size_Of,
+        Expr_Type_Of,
         Expr_Address_Of,
         Expr_Dereference,
         Expr_Typespec,
@@ -952,6 +959,9 @@ Expr_Unary :: struct {
 }
 Expr_Size_Of :: struct {
     thing_to_get_the_size_of: ^Ast_Expr,
+}
+Expr_Type_Of :: struct {
+    thing_to_get_the_type_of: ^Ast_Expr,
 }
 Expr_Address_Of :: struct {
     rhs: ^Ast_Expr,

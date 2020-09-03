@@ -539,6 +539,7 @@ gen_ir_expr :: proc(procedure: ^IR_Proc, expr: ^Ast_Expr, is_at_statement_level 
         case Expr_Cast:      panic("Expr_Cast");
 
         case Expr_Number:   panic("should have been handled above in the constant check");
+        case Expr_Type_Of:  panic("should have been handled above in the constant check");
         case Expr_Typespec: panic("should have been handled above in the constant check");
         case Expr_String:   panic("should have been handled above in the constant check");
         case Expr_Null:     panic("should have been handled above in the constant check");
