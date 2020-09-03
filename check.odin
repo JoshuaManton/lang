@@ -679,14 +679,13 @@ typecheck_expr :: proc(expr: ^Ast_Expr, expected_type: ^Type) -> Checked_Expr {
         case Expr_Subscript: {
             // todo(josh): constant values
 
-            checked_lhs := typecheck_expr(kind.lhs, nil); // todo(josh): should we pass an expected type here?
-            checked_index := typecheck_expr(kind.index, type_int); // todo(josh): should we pass an expected type here?
-            assert(checked_lhs.type != nil);
-            assert(checked_index.type != nil);
-
+            checked_lhs := typecheck_expr(kind.lhs, nil);
             array_type, ok := checked_lhs.type.kind.(Type_Array);
             assert(ok, "need array for lhs"); // todo(josh): error handling
-            assert(is_integer_type(checked_index.type), "need int for index expr"); // todo(josh): handle different integer types: byte, i32, u16, etc
+
+            // todo(josh): handle different integer types: byte, i32, u16, etc
+            checked_index := typecheck_expr(kind.index, type_int);
+            assert(is_integer_type(checked_index.type), "need int for index expr");
 
             checked.type = array_type.array_of;
             checked.mode = .LValue;
