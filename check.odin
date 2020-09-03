@@ -745,6 +745,10 @@ typecheck_expr :: proc(expr: ^Ast_Expr, expected_type: ^Type) -> Checked_Expr {
         panic("expr.type didn't match expected_type:");
     }
 
+    if checked.mode != .No_Value {
+        assert(checked.type != nil);
+    }
+    assert(checked.mode != .Invalid);
     expr.checked = checked;
     return checked;
 }
