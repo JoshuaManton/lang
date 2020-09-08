@@ -123,6 +123,9 @@ proc bool_stuff() {
     assert(f == false);
     assert(!f);
 
+    var thing: typeof(1==1) = true;
+    assert(thing);
+
     if (!t) {
         panic();
     }
