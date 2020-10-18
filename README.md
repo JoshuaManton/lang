@@ -2,7 +2,7 @@
 
 ## Demo
 
-```
+```c
 #include "basic.lang"
 
 var aa: int;
