@@ -148,14 +148,13 @@ generate_ir :: proc() -> ^IR_Result {
 
     // make all global variables
     for node in global_scope.nodes {
-    	scope := &node.kind.(Ast_Scope);
-    	for node in scope.nodes {
+    	file := &node.kind.(Ast_File);
+    	for node in file.scope.nodes {
     		#partial
 	        switch kind in &node.kind {
 	            case Ast_Var: {
 	                ir_var := make_ir_var(&kind, cast(^IR_Storage)ir_allocate_global_storage(ir, kind.type));
 	                append(&ir.global_variables, ir_var);
-
 	            }
 	        }
     	}
@@ -163,8 +162,8 @@ generate_ir :: proc() -> ^IR_Result {
 
     // make all global procedures
     for node in global_scope.nodes {
-    	scope := &node.kind.(Ast_Scope);
-    	for node in scope.nodes {
+        file := &node.kind.(Ast_File);
+    	for node in file.scope.nodes {
     		#partial
 	        switch kind in &node.kind {
 	            case Ast_Proc: {
@@ -255,6 +254,7 @@ gen_ir_scope :: proc(ir: ^IR_Result, procedure: ^IR_Proc, scope: ^Ast_Scope) {
 
 gen_ir_statement :: proc(ir: ^IR_Result, procedure: ^IR_Proc, node: ^Ast_Node) {
     switch stmt in &node.kind {
+        case Ast_File:   gen_ir_scope(ir, procedure, stmt.scope);
         case Ast_Scope:  gen_ir_scope(ir, procedure, &stmt);
         case Ast_Proc:   gen_ir_proc(ir, &stmt);
         case Ast_Assign: gen_ir_assign(procedure, get_storage_for_expr(procedure, stmt.lhs), stmt.rhs, stmt.op);
@@ -391,7 +391,7 @@ get_storage_for_expr :: proc(procedure: ^IR_Proc, expr: ^Ast_Expr, loc := #calle
             switch type_kind in kind.lhs.checked.type.kind {
                 case Type_Struct: {
                     for field, idx in type_kind.fields {
-                        if field.name == kind.field {
+                        if field.name == kind.ident.name {
                             offset := type_kind.offsets[idx];
                             switch root_storage_kind in root_storage.kind {
                                 case Stack_Frame_Storage: {

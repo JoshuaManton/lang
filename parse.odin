@@ -11,31 +11,27 @@ current_scope: ^Ast_Scope;
 current_procedure: ^Ast_Proc;
 current_loop_scope: ^Ast_Scope; // todo(josh): put this in Ast_Scope? Ast_Proc _would_ work but #run can exist outside of procedures
 
-files_to_parse: [dynamic]string;
-
 init_parser :: proc() {
     global_scope = make_node(Ast_Scope);
     assert(current_scope == nil);
     current_scope = global_scope;
 }
 
-begin_parsing :: proc(root_filename: string) {
-    append(&files_to_parse, root_filename);
+parse_file :: proc(filename: string) -> ^Ast_File {
+    file := make_node(Ast_File);
+    file.name = filename;
+    append(&global_scope.nodes, NODE(file));
 
-    for len(files_to_parse) > 0 {
-        filename := pop(&files_to_parse);
-        file_data, ok := os.read_entire_file(filename); // note(josh): we leak the file data because we slice into it for tokens
-        assert(ok);
-        lexer := make_lexer(transmute(string)file_data);
+    file_data, ok := os.read_entire_file(filename); // note(josh): we leak the file data because we slice into it for tokens
+    assert(ok);
+    lexer := make_lexer(transmute(string)file_data);
 
-        assert(global_scope != nil);
-        assert(current_scope == global_scope);
-        scope := parse_scope(&lexer);
-        append(&global_scope.nodes, NODE(scope));
-        for decl in scope.declarations {
-            append(&global_scope.declarations, decl);
-        }
+    file.scope = parse_scope(&lexer);
+    for decl in file.scope.declarations {
+        append(&global_scope.declarations, decl);
     }
+
+    return file;
 }
 
 parse_scope :: proc(lexer: ^Lexer, push_loop_scope := false) -> ^Ast_Scope {
@@ -110,9 +106,9 @@ parse_single_statement :: proc(lexer: ^Lexer) -> ^Ast_Node {
                 get_next_token(lexer);
                 filename_with_quotes := expect(lexer, .String);
                 filename := filename_with_quotes.slice[1:len(filename_with_quotes.slice)-1];
-                append(&files_to_parse, filename);
+                file := parse_file(filename);
                 include_node := make_node(Ast_Include);
-                include_node.filename = filename;
+                include_node.file = file;
                 return NODE(include_node);
             }
             case: {
@@ -602,8 +598,10 @@ parse_postfix_expr :: proc(lexer: ^Lexer) -> ^Ast_Expr {
             case .Period: {
                 name := expect(lexer, .Identifier);
                 assert(ok);
+                ident := make_node(Ast_Identifier);
+                ident.name = name.slice;
                 selector := make_node(Ast_Expr);
-                selector.kind = Expr_Selector{base_expr, name.slice};
+                selector.kind = Expr_Selector{base_expr, ident};
                 base_expr = selector;
             }
             case: panic(twrite(op.kind));
@@ -761,6 +759,7 @@ node_depend :: proc(node: ^Ast_Node, depends_on: ^Ast_Node, type: Depend_Type) {
 NODE_MAGIC :: 273628378;
 Ast_Node :: struct {
     kind: union {
+        Ast_File,
         Ast_Scope,
         Ast_Include,
         Ast_Var,
@@ -811,10 +810,10 @@ NODE :: proc(k: ^$T) -> ^Ast_Node {
     return n;
 }
 
-// Ast_File :: struct {
-//     name: string,
-//     block: ^Ast_Scope,
-// }
+Ast_File :: struct {
+    name: string,
+    scope: ^Ast_Scope,
+}
 
 Ast_Scope :: struct {
     parent: ^Ast_Scope,
@@ -825,7 +824,7 @@ Ast_Scope :: struct {
 }
 
 Ast_Include :: struct {
-    filename: string,
+    file: ^Ast_File,
 }
 
 Ast_Var :: struct {
@@ -981,7 +980,7 @@ Expr_String :: struct {
 }
 Expr_Selector :: struct {
     lhs: ^Ast_Expr,
-    field: string,
+    ident: ^Ast_Identifier,
 }
 Expr_Subscript :: struct {
     lhs: ^Ast_Expr,
@@ -1085,3 +1084,27 @@ Operator :: enum {
     And,
     Or,
 }
+
+operator_strings := [Operator]string {
+    .Multiply      = "*",
+    .Divide        = "/",
+    .Mod           = "%",
+    .Mod_Mod       = "%%",
+    .Shift_Left    = "<<",
+    .Shift_Right   = ">>",
+    .Plus          = "+",
+    .Minus         = "-",
+    .Bit_Xor       = "~",
+    .Bit_Or        = "|",
+    .Bit_And       = "&",
+    .Bit_Not       = "~",
+    .Not           = "!",
+    .Equal_To      = "==",
+    .Not_Equal     = "!=",
+    .Less          = "<",
+    .Greater       = ">",
+    .Less_Equal    = "<=",
+    .Greater_Equal = ">=",
+    .And           = "&&",
+    .Or            = "||",
+};

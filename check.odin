@@ -76,6 +76,7 @@ typecheck_scope :: proc(scope: ^Ast_Scope) {
 
 typecheck_node :: proc(node: ^Ast_Node) {
     switch kind in &node.kind {
+        case Ast_File:           typecheck_scope(kind.scope);
         case Ast_Scope:          typecheck_scope(&kind);
         case Ast_Var:            typecheck_var(&kind);    assert(kind.type != nil);
         case Ast_Proc:           typecheck_proc(&kind);   assert(kind.type != nil);
@@ -88,11 +89,11 @@ typecheck_node :: proc(node: ^Ast_Node) {
         case Ast_Assign:         typecheck_assign(&kind);
         case Ast_Defer:          typecheck_defer(&kind);
         case Ast_Identifier:     assert(kind.resolved_declaration != nil);
-        case Ast_Include:        // do nothing
+        case Ast_Include:        typecheck_node(NODE(kind.file));
         case Ast_Continue:       // do nothing
         case Ast_Break:          // do nothing
         case Ast_Expr:     panic("there should be no Ast_Exprs here, only Ast_Expr_Statements");
-        case: panic(tprint(node));
+        case: panic(twrite(node));
     }
 }
 
@@ -673,7 +674,7 @@ typecheck_expr :: proc(expr: ^Ast_Expr, expected_type: ^Type) -> Checked_Expr {
 
             type_of_field: ^Type;
             for field in structure.fields {
-                if field.name == kind.field {
+                if field.name == kind.ident.name {
                     type_of_field = field.type;
                     break;
                 }

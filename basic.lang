@@ -10,3 +10,7 @@ proc assert(condition: bool) {
         __trap();
     }
 }
+
+proc panic() {
+    __trap();
+}

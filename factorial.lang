@@ -1,4 +1,4 @@
-// #include "basic.lang"
+#include "basic.lang"
 
 proc factorial(n: int) : int {
     if (n == 1) {
@@ -9,5 +9,6 @@ proc factorial(n: int) : int {
 
 proc main() {
     var x: int = factorial(5);
-    // print(x);
+    print(x);
+    assert(x == 120);
 }

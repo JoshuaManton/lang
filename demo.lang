@@ -1,19 +1,4 @@
-proc __trap() #foreign;
-proc __print_int(n: int) #foreign;
-
-proc print(n: int) {
-    __print_int(n);
-}
-
-proc assert(condition: bool) {
-    if (condition == false) {
-        __trap();
-    }
-}
-
-proc panic() {
-    __trap();
-}
+#include "basic.lang"
 
 var aa: int;
 var bb: int;
@@ -77,10 +62,10 @@ proc int_sizes() {
     var d: i8 ;
 
     // todo(josh): need untyped types
-    // assert(a == 123);
-    // assert(b == 123);
-    // assert(c == 123);
-    // assert(d == 123);
+    // a = 123;
+    // b = 123;
+    // c = 123;
+    // d = 123;
 
     assert(sizeof(i64) == 8);
     assert(sizeof(i32) == 4);
