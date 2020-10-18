@@ -290,7 +290,7 @@ gen_ir_statement :: proc(ir: ^IR_Result, procedure: ^IR_Proc, node: ^Ast_Node) {
         case Ast_Include:    // skip, no IR needed
         case Ast_Expr:       panic("Shouldn't be any expressions at statement level.");
         case Ast_Identifier: panic("Shouldn't be any identifiers at statement level.");
-        case: panic(tprint(stmt));
+        case: panic(twrite(stmt));
     }
 }
 
@@ -331,7 +331,7 @@ gen_ir_assign :: proc(procedure: ^IR_Proc, dst: ^IR_Storage, expr: ^Ast_Expr, as
         case .Minus_Assign:    gen_assign_with_op(procedure, .Minus,    dst, rhs_result);
         case .Multiply_Assign: gen_assign_with_op(procedure, .Multiply, dst, rhs_result);
         case .Divide_Assign:   gen_assign_with_op(procedure, .Divide,   dst, rhs_result);
-        case: panic(tprint(assign_op));
+        case: panic(twrite(assign_op));
     }
 
     gen_assign_with_op :: proc(procedure: ^IR_Proc, op: Operator, dst: ^IR_Storage, rhs_result: ^Register_Storage) {
@@ -371,7 +371,7 @@ get_storage_for_expr :: proc(procedure: ^IR_Proc, expr: ^Ast_Expr, loc := #calle
                     assert(decl.var.storage.kind != nil);
                     return decl.var.storage;
                 }
-                case: panic(tprint(decl)); // todo(josh): error logging
+                case: panic(twrite(decl)); // todo(josh): error logging
             }
         }
         case Expr_Address_Of: {
@@ -420,10 +420,10 @@ get_storage_for_expr :: proc(procedure: ^IR_Proc, expr: ^Ast_Expr, loc := #calle
                 case Type_Ptr: {
                     panic("todo(josh): auto dereference");
                 }
-                case: panic(tprint(type_kind));
+                case: panic(twrite(type_kind));
             }
         }
-        case: panic(tprint(kind));
+        case: panic(twrite(kind));
     }
     unreachable();
 }
@@ -545,7 +545,7 @@ gen_ir_expr :: proc(procedure: ^IR_Proc, expr: ^Ast_Expr, is_at_statement_level 
         case Expr_Null:     panic("should have been handled above in the constant check");
         case Expr_True:     panic("should have been handled above in the constant check");
         case Expr_False:    panic("should have been handled above in the constant check");
-        case: panic(tprint(kind));
+        case: panic(twrite(kind));
     }
     unreachable();
 }
@@ -579,7 +579,7 @@ free_register :: proc(procedure: ^IR_Proc, storage: ^Register_Storage, loc := #c
         }
     }
     if !did_remove {
-        panic(tprint(loc));
+        panic(twrite(loc));
     }
     append(&procedure.register_freelist, storage.register);
 }

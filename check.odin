@@ -126,7 +126,7 @@ typecheck_identifier :: proc(ident: ^Ast_Identifier) -> Checked_Expr {
             checked.type = TYPE(decl.procedure.type);
             checked.mode = .RValue;
         }
-        case: panic(tprint(ident));
+        case: panic(twrite(ident));
     }
     assert(checked.type != nil);
     assert(checked.mode != .Invalid);
@@ -194,7 +194,7 @@ typecheck_typespec :: proc(typespec: ^Expr_Typespec) -> Checked_Expr {
             constant_size := checked_length.constant_value.(i64);
             typespec.type = TYPE(get_or_make_type_array_of(kind.array_of.type, cast(int)constant_size)); // todo(josh): remove this cast!!!!
         }
-        case: panic(tprint(typespec));
+        case: panic(twrite(typespec));
     }
     assert(typespec.type != nil);
     checked: Checked_Expr;
@@ -527,7 +527,7 @@ typecheck_expr :: proc(expr: ^Ast_Expr, expected_type: ^Type) -> Checked_Expr {
                 }
                 case .Not: panic("no unary ops here");
                 case .Bit_Not: panic("no unary here");
-                case: unimplemented(fmt.tprint(kind.op));
+                case: unimplemented(twrite(kind.op));
             }
 
             if checked_lhs.constant_value != nil && checked_rhs.constant_value != nil {
@@ -611,7 +611,7 @@ typecheck_expr :: proc(expr: ^Ast_Expr, expected_type: ^Type) -> Checked_Expr {
                         }
                     }
                 }
-                case: unimplemented(fmt.tprint(kind.op));
+                case: unimplemented(twrite(kind.op));
             }
 
             if checked_rhs.constant_value != nil {
@@ -739,7 +739,7 @@ typecheck_expr :: proc(expr: ^Ast_Expr, expected_type: ^Type) -> Checked_Expr {
         case Expr_Paren: {
             checked = typecheck_expr(kind.expr, expected_type);
         }
-        case: panic(tprint(expr));
+        case: panic(twrite(expr));
     }
 
     if expected_type != nil && checked.type != nil && expected_type != checked.type {

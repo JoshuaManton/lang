@@ -138,7 +138,7 @@ parse_single_statement :: proc(lexer: ^Lexer) -> ^Ast_Node {
                         return NODE(expr_stmt);
                     }
                     case: {
-                        unimplemented(fmt.tprint(token.kind));
+                        unimplemented(twrite(token.kind));
                     }
                 }
             }
@@ -221,7 +221,7 @@ parse_typespec :: proc(lexer: ^Lexer) -> ^Expr_Typespec {
                 }
             }
         }
-        case: unimplemented(fmt.tprint(token.kind));
+        case: unimplemented(twrite(token.kind));
     }
     assert(typespec.kind != nil);
 
@@ -541,7 +541,7 @@ parse_unary_expr :: proc(lexer: ^Lexer) -> ^Ast_Expr {
                 expr.kind = Expr_Unary{unary_operator(op.kind), rhs};
             }
             case: {
-                panic(tprint("Unknown unary op: ", op.kind));
+                panic(twrite("Unknown unary op: ", op.kind));
             }
         }
     }
@@ -606,7 +606,7 @@ parse_postfix_expr :: proc(lexer: ^Lexer) -> ^Ast_Expr {
                 selector.kind = Expr_Selector{base_expr, name.slice};
                 base_expr = selector;
             }
-            case: panic(tprint(op.kind));
+            case: panic(twrite(op.kind));
         }
     }
 
@@ -650,7 +650,7 @@ parse_base_expr :: proc(lexer: ^Lexer) -> ^Ast_Expr {
             return EXPR(parse_typespec(lexer));
         }
         case: {
-            unimplemented(fmt.tprint(token));
+            unimplemented(twrite(token));
         }
     }
 
@@ -687,7 +687,7 @@ unescape_string :: proc(str: string) -> (string, int) {
                 case 'r':  fmt.sbprint(&sb, "\\r");
                 case 't':  fmt.sbprint(&sb, "\\t");
                 // case 'u':  fmt.sbprint(&sb, '\u'); // todo(josh): unicode
-                case: panic(fmt.tprint("Unexpected escape character: ", c));
+                case: panic(twrite("Unexpected escape character: ", c));
             }
         }
     }
@@ -726,7 +726,7 @@ binary_operator :: proc(t: Token_Kind, loc := #caller_location) -> Operator {
         case .Or:            return .Or;
         case .Plus:          return .Plus;
         case .Minus:         return .Minus;
-        case: panic(tprint("invalid binary operator: ", t, " caller: ", loc));
+        case: panic(twrite("invalid binary operator: ", t, " caller: ", loc));
     }
     unreachable();
 }
@@ -738,7 +738,7 @@ unary_operator :: proc(t: Token_Kind, loc := #caller_location) -> Operator {
         case .Plus:  return .Plus;
         case .Minus: return .Minus;
         case .Not:   return .Not;
-        case: panic(tprint("invalid unary operator: ", t, " caller: ", loc));
+        case: panic(twrite("invalid unary operator: ", t, " caller: ", loc));
     }
     unreachable();
 }

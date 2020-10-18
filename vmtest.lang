@@ -19,17 +19,17 @@ var aa: int;
 var bb: int;
 var cc: int;
 
+struct Vector3 {
+    x: int;
+    y: int;
+    z: int;
+}
+
 proc factorial(n: int) : int {
     if (n == 1) {
         return 1;
     }
     return n * factorial(n-1);
-}
-
-struct Vector3 {
-    x: int;
-    y: int;
-    z: int;
 }
 
 proc things() {

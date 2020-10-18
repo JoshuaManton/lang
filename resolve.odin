@@ -28,6 +28,6 @@ resolve_identifiers :: proc() {
             }
         }
 
-        panic(fmt.tprint("Unresolved identifier:", ident));
+        panic(twrite("Unresolved identifier:", ident));
     }
 }

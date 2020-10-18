@@ -6,7 +6,7 @@ import "core:strings"
 
 // todo(josh): graphical debugger
 
-VM_DEBUG_PRINT :: false;
+VM_DEBUG_PRINT :: true;
 VM_TOTAL_MEMORY :: 16 * 1024 * 1024; // 16 megabytes
 VM_STACK_SIZE   ::  2 * 1024 * 1024; // 2 megabytes
 VM_GLOBAL_STORAGE_BEGIN :: VM_STACK_SIZE;
@@ -290,7 +290,52 @@ execute_vm :: proc(vm: ^VM) {
                     fmt.printf("  ; %s\n", comment);
                 }
             }
-            fmt.printf("    %v\n", vm.instructions[idx]);
+            switch kind in instruction {
+                case PUSH:       fmt.printf("    push %v\n", kind.p1);
+                case POP:        fmt.printf("    pop %v\n", kind.dst);
+                case MOV:        fmt.printf("    mov %v %v\n", kind.dst, kind.src);
+                case MOVI:       fmt.printf("    movi %v %v\n", kind.dst, kind.imm);
+                case ADD:        fmt.printf("    add %v %v %v\n", kind.dst, kind.p1, kind.p2);
+                case ADDI:       fmt.printf("    addi %v %v %v\n", kind.dst, kind.p1, kind.imm);
+                case FADD:       fmt.printf("    fadd %v %v %v\n", kind.dst, kind.p1, kind.p2);
+                case FADDI:      fmt.printf("    faddi %v %v %v\n", kind.dst, kind.p1, kind.imm);
+                case SUB:        fmt.printf("    sub %v %v %v\n", kind.dst, kind.p1, kind.p2);
+                case FSUB:       fmt.printf("    fsub %v %v %v\n", kind.dst, kind.p1, kind.p2);
+                case MUL:        fmt.printf("    mul %v %v %v\n", kind.dst, kind.p1, kind.p2);
+                case FMUL:       fmt.printf("    fmul %v %v %v\n", kind.dst, kind.p1, kind.p2);
+                case SDIV:       fmt.printf("    sdiv %v %v %v\n", kind.dst, kind.p1, kind.p2);
+                case UDIV:       fmt.printf("    udiv %v %v %v\n", kind.dst, kind.p1, kind.p2);
+                case FDIV:       fmt.printf("    fdiv %v %v %v\n", kind.dst, kind.p1, kind.p2);
+                case EQ:         fmt.printf("    eq %v %v %v\n", kind.dst, kind.p1, kind.p2);
+                case NEQ:        fmt.printf("    neq %v %v %v\n", kind.dst, kind.p1, kind.p2);
+                case LT:         fmt.printf("    lt %v %v %v\n", kind.dst, kind.p1, kind.p2);
+                case LTE:        fmt.printf("    lte %v %v %v\n", kind.dst, kind.p1, kind.p2);
+                case GOTO:       fmt.printf("    goto %v\n", kind.label);
+                case GOTO_IP:    fmt.printf("    goto_ip %v\n", kind.ip);
+                case GOTOIF:     fmt.printf("    gotoif %v %v\n", kind.p1, kind.label);
+                case GOTOIF_IP:  fmt.printf("    gotoif_ip %v %v\n", kind.p1, kind.ip);
+                case GOTOIFZ:    fmt.printf("    gotoifz %v %v\n", kind.p1, kind.label);
+                case GOTOIFZ_IP: fmt.printf("    gotoifz_ip %v %v\n", kind.p1, kind.ip);
+                case JUMP:       fmt.printf("    jump %v\n", kind.label);
+                case JUMP_IP:    fmt.printf("    jump_ip %v\n", kind.ip);
+                case JUMPIF:     fmt.printf("    jumpif %v %v\n", kind.p1, kind.label);
+                case JUMPIF_IP:  fmt.printf("    jumpif_ip %v %v\n", kind.p1, kind.ip);
+                case JUMPIFZ:    fmt.printf("    jumpifz %v %v\n", kind.p1, kind.label);
+                case JUMPIFZ_IP: fmt.printf("    jumpifz_ip %v %v\n", kind.p1, kind.ip);
+                case LOAD8:      fmt.printf("    load8 %v %v\n", kind.dst, kind.p1);
+                case LOAD16:     fmt.printf("    load16 %v %v\n", kind.dst, kind.p1);
+                case LOAD32:     fmt.printf("    load32 %v %v\n", kind.dst, kind.p1);
+                case LOAD64:     fmt.printf("    load64 %v %v\n", kind.dst, kind.p1);
+                case STORE8:     fmt.printf("    store8 %v %v\n", kind.dst, kind.p1);
+                case STORE16:    fmt.printf("    store16 %v %v\n", kind.dst, kind.p1);
+                case STORE32:    fmt.printf("    store32 %v %v\n", kind.dst, kind.p1);
+                case STORE64:    fmt.printf("    store64 %v %v\n", kind.dst, kind.p1);
+                case COPY:       fmt.printf("    copy %v %v %v\n", kind.dst, kind.src, kind.size);
+                case EXIT:       fmt.printf("    exit\n");
+                case TRAP:       fmt.printf("    trap\n");
+                case PRINT_INT:  fmt.printf("    print_int %v\n", kind.p1);
+                case PRINT_REG:  fmt.printf("    print_reg %v\n", kind.p1);
+            }
         }
 
         #partial
@@ -372,7 +417,7 @@ execute_vm :: proc(vm: ^VM) {
             case PRINT_INT: fmt.println(transmute(i64)vm.registers[kind.p1]);
 
             case PRINT_REG: fmt.println("REGISTER", kind.p1, "=", vm.registers[kind.p1]);
-            case: panic(tprint(kind));
+            case: panic(twrite(kind));
         }
 
         // fmt.printf("| %d | %d | %d | %d |\n", vm.registers[.r1], vm.registers[.r2], vm.registers[.r3], vm.registers[.r4]);

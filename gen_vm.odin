@@ -43,7 +43,7 @@ gen_vm_load_from_storage :: proc(vm: ^VM, procedure: ^IR_Proc, dst: Register, st
         case Register_Storage: {
             panic("This is would mean a stupid register copy, please handle the case at the call-site where `storage` is already a register.");
         }
-        case: panic(tprint(storage));
+        case: panic(twrite(storage));
     }
 }
 
@@ -83,7 +83,7 @@ gen_vm_store_to_storage :: proc(vm: ^VM, procedure: ^IR_Proc, dst: ^IR_Storage, 
         case Register_Storage: {
             panic("what does this mean, storing to a register? sounds wack");
         }
-        case: panic(tprint(dst));
+        case: panic(twrite(dst));
     }
 }
 
@@ -199,13 +199,13 @@ gen_vm_return :: proc(vm: ^VM, procedure: ^IR_Proc, ir_return: ^IR_Return = nil)
 
 gen_vm_block :: proc(vm: ^VM, procedure: ^IR_Proc, block: ^IR_Block) {
     for inst in &block.instructions {
-        vm_comment(vm, aprint(reflect.union_variant_type_info(inst.kind)));
+        vm_comment(vm, awrite(reflect.union_variant_type_info(inst.kind)));
         switch kind in &inst.kind {
             case IR_Move_Immediate: {
                 switch val in kind.value {
                     case i64: add_instruction(vm, MOVI{VM_REGISTER(kind.dst.register), kind.value.(i64)});
                     case f64: panic("todo(josh): support floats");
-                    case: panic(tprint(val));
+                    case: panic(twrite(val));
                 }
             }
             case IR_Store: gen_vm_store_to_storage(vm, procedure, kind.storage, VM_REGISTER(kind.reg.register));
@@ -244,12 +244,12 @@ gen_vm_block :: proc(vm: ^VM, procedure: ^IR_Proc, block: ^IR_Block) {
                     case .Not: {
                         add_instruction(vm, EQ{VM_REGISTER(kind.dst.register), VM_REGISTER(kind.rhs.register), .rz});
                     }
-                    case: panic(tprint(kind.op));
+                    case: panic(twrite(kind.op));
                 }
             }
             case IR_If: {
-                end_of_if_label := aprint("if_", kind.s);
-                else_label := aprint("if_else_", kind.s);
+                end_of_if_label := awrite("if_", kind.s);
+                else_label := awrite("if_else_", kind.s);
                 if kind.else_block != nil {
                     add_instruction(vm, GOTOIFZ{VM_REGISTER(kind.condition_reg.register), else_label});
                 }
@@ -293,7 +293,7 @@ gen_vm_block :: proc(vm: ^VM, procedure: ^IR_Proc, block: ^IR_Block) {
                                 case 2: add_instruction(vm, STORE16{.rt, VM_REGISTER(param.result_register.register)});
                                 case 4: add_instruction(vm, STORE32{.rt, VM_REGISTER(param.result_register.register)});
                                 case 8: add_instruction(vm, STORE64{.rt, VM_REGISTER(param.result_register.register)});
-                                case: panic(tprint(param.type.size));
+                                case: panic(twrite(param.type.size));
                             }
                         }
 
@@ -323,14 +323,14 @@ gen_vm_block :: proc(vm: ^VM, procedure: ^IR_Proc, block: ^IR_Block) {
                     case Indirect_Storage: {
                         panic("I don't think this makes any sense? Maybe &foo^? Kinda weird");
                     }
-                    case: panic(tprint(kind.storage_to_take_address_of));
+                    case: panic(twrite(kind.storage_to_take_address_of));
                 }
             }
             case IR_Return: {
                 gen_vm_return(vm, procedure, &kind);
             }
 
-            case: panic(tprint(kind));
+            case: panic(twrite(kind));
         }
     }
 }

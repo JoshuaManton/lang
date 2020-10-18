@@ -2,6 +2,7 @@ package main
 
 import "core:fmt"
 import "core:strconv"
+import "core:strings"
 import "core:os"
 
 import "shared:wb/logging"
@@ -174,4 +175,16 @@ Maybe :: union(T: typeid) {
 getval :: inline proc(m: ^Maybe($T)) -> (^T, bool) {
     if _, ok := m.(T); !ok do return nil, false;
     return &m.(T), true;
+}
+
+twrite :: inline proc(args: ..any) -> string {
+    return fmt.tprint(args=args, sep="");
+}
+
+sbwrite :: inline proc(buf: ^strings.Builder, args: ..any) -> string {
+    return fmt.sbprint(buf=buf, args=args, sep="");
+}
+
+awrite :: inline proc(args: ..any) -> string {
+    return fmt.aprint(args=args, sep="");
 }
