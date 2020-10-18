@@ -1,5 +1,26 @@
 # lang
 
+This compiler implements a recursive-descent parser to parse source code into a syntax tree, typechecks the syntax tree and enforces the semantic rules of the language, generates an intermediate representation of the instruction stream, translates this intermediate representation to bytecode, and executes the bytecode in a virtual machine.
+
+## Factorial
+
+```c
+#include "basic.lang" // contains VM intrinsics for print() and assert()
+
+proc factorial(n: int) : int {
+    if (n == 1) {
+        return 1;
+    }
+    return n * factorial(n-1);
+}
+
+proc main() {
+    var x: int = factorial(5); // the `int` is optional, as the type can be inferred based on the return type of `factorial()`
+    print(x);
+    assert(x == 120);
+}
+```
+
 ## Demo
 
 ```c
