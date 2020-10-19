@@ -55,6 +55,13 @@ proc things() {
     assert(foozlebarzle == 123);
 }
 
+proc floats() {
+    var f = 1.0 / 2.0;
+    __print_float(f);
+    assert(typeof(f) == float);
+    assert(typeof(f) == f64);
+}
+
 proc int_sizes() {
     var a: i64;
     var b: i32;
@@ -163,9 +170,10 @@ proc main() {
     assert(v.z == 123);
 
     things();
+    floats();
     int_sizes();
     type_alias();
     bool_stuff();
     pointers();
-    print(123);
+    print_int(123);
 }

@@ -1,8 +1,13 @@
 proc __trap() #foreign;
-proc __print_int(n: int) #foreign;
+proc __print_int(n: i64) #foreign;
+proc __print_float(n: f64) #foreign;
 
-proc print(n: int) {
+proc print_int(n: i64) {
     __print_int(n);
+}
+
+proc print_float(n: f64) {
+    __print_float(n);
 }
 
 proc assert(condition: bool) {

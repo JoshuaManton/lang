@@ -1,579 +1,617 @@
 digraph g {
     2 [label="file demo.lang"]
     3 [label="scope"]
-    48 [label="include basic.lang"]
+    65 [label="include basic.lang"]
     4 [label="file basic.lang"]
     5 [label="scope"]
     6 [label="proc __trap"]
     8 [label="proc __print_int"]
     10 [label="var n"]
-    12 [label="int"]
-    13 [label="proc print"]
+    12 [label="i64"]
+    13 [label="proc __print_float"]
     15 [label="var n"]
-    17 [label="int"]
-    18 [label="scope"]
-    24 [label="expr statement"]
-    23 [label="call"]
-    20 [label="__print_int"]
-    22 [label="n"]
-    25 [label="proc assert"]
-    27 [label="var condition"]
-    29 [label="bool"]
-    30 [label="scope"]
-    40 [label="if"]
-    34 [label="=="]
-    32 [label="condition"]
-    33 [label="false"]
+    17 [label="f64"]
+    18 [label="proc print_int"]
+    20 [label="var n"]
+    22 [label="i64"]
+    23 [label="scope"]
+    29 [label="expr statement"]
+    28 [label="call"]
+    25 [label="__print_int"]
+    27 [label="n"]
+    30 [label="proc print_float"]
+    32 [label="var n"]
+    34 [label="f64"]
     35 [label="scope"]
-    39 [label="expr statement"]
-    38 [label="call"]
-    37 [label="__trap"]
-    41 [label="proc panic"]
-    43 [label="scope"]
-    47 [label="expr statement"]
-    46 [label="call"]
-    45 [label="__trap"]
-    49 [label="var aa"]
-    51 [label="int"]
-    52 [label="var bb"]
-    54 [label="int"]
-    55 [label="var cc"]
-    57 [label="int"]
-    58 [label="struct Vector3"]
-    59 [label="var x"]
-    61 [label="int"]
-    62 [label="var y"]
-    64 [label="int"]
-    65 [label="var z"]
-    67 [label="int"]
-    68 [label="proc factorial"]
-    70 [label="var n"]
-    72 [label="int"]
+    41 [label="expr statement"]
+    40 [label="call"]
+    37 [label="__print_float"]
+    39 [label="n"]
+    42 [label="proc assert"]
+    44 [label="var condition"]
+    46 [label="bool"]
+    47 [label="scope"]
+    57 [label="if"]
+    51 [label="=="]
+    49 [label="condition"]
+    50 [label="false"]
+    52 [label="scope"]
+    56 [label="expr statement"]
+    55 [label="call"]
+    54 [label="__trap"]
+    58 [label="proc panic"]
+    60 [label="scope"]
+    64 [label="expr statement"]
+    63 [label="call"]
+    62 [label="__trap"]
+    66 [label="var aa"]
+    68 [label="int"]
+    69 [label="var bb"]
+    71 [label="int"]
+    72 [label="var cc"]
     74 [label="int"]
-    75 [label="scope"]
-    83 [label="if"]
-    79 [label="=="]
-    77 [label="n"]
-    78 [label="number 1"]
-    80 [label="scope"]
-    81 [label="return"]
-    82 [label="number 1"]
-    84 [label="return"]
-    94 [label="*"]
-    86 [label="n"]
-    93 [label="call"]
-    88 [label="factorial"]
-    92 [label="-"]
-    90 [label="n"]
-    91 [label="number 1"]
-    95 [label="proc things"]
+    75 [label="struct Vector3"]
+    76 [label="var x"]
+    78 [label="int"]
+    79 [label="var y"]
+    81 [label="int"]
+    82 [label="var z"]
+    84 [label="int"]
+    85 [label="proc factorial"]
+    87 [label="var n"]
+    89 [label="int"]
+    91 [label="int"]
+    92 [label="scope"]
+    100 [label="if"]
+    96 [label="=="]
+    94 [label="n"]
+    95 [label="number 1"]
     97 [label="scope"]
-    98 [label="var v"]
-    100 [label="Vector3"]
-    106 [label="="]
-    104 [label="selector"]
-    102 [label="v"]
-    103 [label="x"]
-    105 [label="number 1"]
-    112 [label="="]
-    110 [label="selector"]
-    108 [label="v"]
-    109 [label="y"]
-    111 [label="number 4"]
-    118 [label="="]
-    116 [label="selector"]
-    114 [label="v"]
-    115 [label="z"]
-    117 [label="number 9"]
-    128 [label="expr statement"]
-    127 [label="call"]
-    120 [label="assert"]
-    126 [label="=="]
-    124 [label="selector"]
-    122 [label="v"]
-    123 [label="x"]
-    125 [label="number 1"]
-    138 [label="expr statement"]
-    137 [label="call"]
-    130 [label="assert"]
-    136 [label="=="]
-    134 [label="selector"]
-    132 [label="v"]
-    133 [label="y"]
-    135 [label="number 4"]
-    148 [label="expr statement"]
-    147 [label="call"]
-    140 [label="assert"]
-    146 [label="=="]
-    144 [label="selector"]
-    142 [label="v"]
-    143 [label="z"]
-    145 [label="number 9"]
-    152 [label="="]
-    150 [label="aa"]
-    151 [label="number 5"]
-    160 [label="="]
-    154 [label="aa"]
-    159 [label="call"]
-    156 [label="factorial"]
-    158 [label="aa"]
-    161 [label="var SIX"]
-    162 [label="number 6"]
-    170 [label="="]
-    164 [label="bb"]
-    169 [label="call"]
-    166 [label="factorial"]
-    168 [label="SIX"]
-    178 [label="="]
-    172 [label="cc"]
-    177 [label="+"]
-    174 [label="aa"]
-    176 [label="bb"]
-    179 [label="var x"]
-    183 [label="call"]
-    181 [label="factorial"]
-    182 [label="number 10"]
-    191 [label="expr statement"]
-    190 [label="call"]
-    185 [label="assert"]
-    189 [label="=="]
-    187 [label="aa"]
-    188 [label="number 120"]
-    195 [label="+="]
-    193 [label="aa"]
-    194 [label="number 5"]
-    203 [label="expr statement"]
-    202 [label="call"]
-    197 [label="assert"]
-    201 [label="=="]
-    199 [label="aa"]
-    200 [label="number 125"]
-    207 [label="-="]
-    205 [label="aa"]
-    206 [label="number 3"]
-    215 [label="expr statement"]
-    214 [label="call"]
-    209 [label="assert"]
-    213 [label="=="]
-    211 [label="aa"]
-    212 [label="number 122"]
-    219 [label="*="]
-    217 [label="aa"]
-    218 [label="number 2"]
-    227 [label="expr statement"]
-    226 [label="call"]
-    221 [label="assert"]
-    225 [label="=="]
-    223 [label="aa"]
-    224 [label="number 244"]
-    235 [label="expr statement"]
-    234 [label="call"]
-    229 [label="assert"]
-    233 [label="=="]
-    231 [label="bb"]
-    232 [label="number 720"]
-    243 [label="expr statement"]
-    242 [label="call"]
-    237 [label="assert"]
-    241 [label="=="]
-    239 [label="cc"]
-    240 [label="number 840"]
-    251 [label="expr statement"]
-    250 [label="call"]
-    245 [label="assert"]
-    249 [label="=="]
-    247 [label="x"]
-    248 [label="number 3628800"]
-    252 [label="var foozlebarzle"]
-    253 [label="number 123"]
-    261 [label="expr statement"]
-    260 [label="call"]
-    255 [label="assert"]
-    259 [label="=="]
-    257 [label="foozlebarzle"]
-    258 [label="number 123"]
-    262 [label="proc int_sizes"]
-    264 [label="scope"]
-    265 [label="var a"]
-    267 [label="i64"]
-    268 [label="var b"]
-    270 [label="i32"]
-    271 [label="var c"]
-    273 [label="i16"]
-    274 [label="var d"]
-    276 [label="i8"]
-    285 [label="expr statement"]
-    284 [label="call"]
-    278 [label="assert"]
-    283 [label="=="]
-    279 [label="sizeof"]
-    281 [label="i64"]
-    282 [label="number 8"]
-    294 [label="expr statement"]
-    293 [label="call"]
-    287 [label="assert"]
-    292 [label="=="]
-    288 [label="sizeof"]
-    290 [label="i32"]
-    291 [label="number 4"]
-    303 [label="expr statement"]
-    302 [label="call"]
-    296 [label="assert"]
-    301 [label="=="]
-    297 [label="sizeof"]
-    299 [label="i16"]
-    300 [label="number 2"]
-    312 [label="expr statement"]
-    311 [label="call"]
-    305 [label="assert"]
-    310 [label="=="]
-    306 [label="sizeof"]
-    308 [label="i8"]
-    309 [label="number 1"]
-    321 [label="expr statement"]
-    320 [label="call"]
-    314 [label="assert"]
-    319 [label="=="]
-    315 [label="sizeof"]
-    317 [label="a"]
-    318 [label="number 8"]
-    330 [label="expr statement"]
-    329 [label="call"]
-    323 [label="assert"]
-    328 [label="=="]
-    324 [label="sizeof"]
-    326 [label="b"]
-    327 [label="number 4"]
-    339 [label="expr statement"]
-    338 [label="call"]
-    332 [label="assert"]
-    337 [label="=="]
-    333 [label="sizeof"]
-    335 [label="c"]
-    336 [label="number 2"]
-    348 [label="expr statement"]
-    347 [label="call"]
-    341 [label="assert"]
-    346 [label="=="]
-    342 [label="sizeof"]
-    344 [label="d"]
-    345 [label="number 1"]
-    358 [label="expr statement"]
-    357 [label="call"]
-    350 [label="assert"]
-    356 [label="=="]
-    351 [label="sizeof"]
-    354 [label="^int"]
-    353 [label="int"]
-    355 [label="number 8"]
-    368 [label="expr statement"]
-    367 [label="call"]
-    360 [label="assert"]
-    366 [label="=="]
-    361 [label="sizeof"]
-    364 [label="[]int"]
-    363 [label="int"]
-    365 [label="number 16"]
-    369 [label="proc type_alias"]
-    371 [label="scope"]
-    372 [label="var My_Int"]
-    374 [label="int"]
-    375 [label="var a"]
-    377 [label="My_Int"]
-    378 [label="number 12"]
-    385 [label="+="]
-    380 [label="a"]
-    384 [label="+"]
-    382 [label="a"]
-    383 [label="number 12"]
-    393 [label="expr statement"]
-    392 [label="call"]
-    387 [label="assert"]
-    391 [label="=="]
-    389 [label="a"]
-    390 [label="number 36"]
-    394 [label="var My_Vec"]
-    396 [label="Vector3"]
-    397 [label="var v"]
-    399 [label="My_Vec"]
-    405 [label="="]
-    403 [label="selector"]
-    401 [label="v"]
-    402 [label="x"]
-    404 [label="number 1"]
-    411 [label="="]
-    409 [label="selector"]
-    407 [label="v"]
-    408 [label="y"]
-    410 [label="number 4"]
-    417 [label="="]
-    415 [label="selector"]
-    413 [label="v"]
-    414 [label="z"]
-    416 [label="number 9"]
-    427 [label="expr statement"]
-    426 [label="call"]
-    419 [label="assert"]
-    425 [label="=="]
-    423 [label="selector"]
-    421 [label="v"]
-    422 [label="x"]
-    424 [label="number 1"]
-    437 [label="expr statement"]
-    436 [label="call"]
-    429 [label="assert"]
-    435 [label="=="]
-    433 [label="selector"]
-    431 [label="v"]
-    432 [label="y"]
-    434 [label="number 4"]
-    447 [label="expr statement"]
-    446 [label="call"]
-    439 [label="assert"]
-    445 [label="=="]
-    443 [label="selector"]
-    441 [label="v"]
-    442 [label="z"]
-    444 [label="number 9"]
-    448 [label="proc bool_stuff"]
-    450 [label="scope"]
-    451 [label="var t"]
-    454 [label="=="]
-    452 [label="number 1"]
-    453 [label="number 1"]
-    464 [label="expr statement"]
-    463 [label="call"]
-    456 [label="assert"]
-    462 [label="=="]
-    457 [label="typeof"]
-    459 [label="t"]
-    461 [label="bool"]
-    472 [label="expr statement"]
-    471 [label="call"]
-    466 [label="assert"]
-    470 [label="=="]
-    468 [label="t"]
-    469 [label="true"]
-    478 [label="expr statement"]
-    477 [label="call"]
-    474 [label="assert"]
-    476 [label="t"]
-    479 [label="var f"]
-    482 [label="=="]
-    480 [label="number 1"]
-    481 [label="number 2"]
-    493 [label="expr statement"]
-    492 [label="call"]
-    484 [label="assert"]
-    491 [label="=="]
-    485 [label="typeof"]
-    487 [label="t"]
-    488 [label="typeof"]
-    490 [label="f"]
-    501 [label="expr statement"]
-    500 [label="call"]
-    495 [label="assert"]
-    499 [label="=="]
-    497 [label="f"]
-    498 [label="false"]
-    508 [label="expr statement"]
-    507 [label="call"]
-    503 [label="assert"]
-    504 [label="!"]
-    506 [label="f"]
-    509 [label="var thing"]
-    510 [label="typeof"]
-    513 [label="=="]
-    511 [label="number 1"]
-    512 [label="number 1"]
-    514 [label="true"]
-    520 [label="expr statement"]
-    519 [label="call"]
+    98 [label="return"]
+    99 [label="number 1"]
+    101 [label="return"]
+    111 [label="*"]
+    103 [label="n"]
+    110 [label="call"]
+    105 [label="factorial"]
+    109 [label="-"]
+    107 [label="n"]
+    108 [label="number 1"]
+    112 [label="proc things"]
+    114 [label="scope"]
+    115 [label="var v"]
+    117 [label="Vector3"]
+    123 [label="="]
+    121 [label="selector"]
+    119 [label="v"]
+    120 [label="x"]
+    122 [label="number 1"]
+    129 [label="="]
+    127 [label="selector"]
+    125 [label="v"]
+    126 [label="y"]
+    128 [label="number 4"]
+    135 [label="="]
+    133 [label="selector"]
+    131 [label="v"]
+    132 [label="z"]
+    134 [label="number 9"]
+    145 [label="expr statement"]
+    144 [label="call"]
+    137 [label="assert"]
+    143 [label="=="]
+    141 [label="selector"]
+    139 [label="v"]
+    140 [label="x"]
+    142 [label="number 1"]
+    155 [label="expr statement"]
+    154 [label="call"]
+    147 [label="assert"]
+    153 [label="=="]
+    151 [label="selector"]
+    149 [label="v"]
+    150 [label="y"]
+    152 [label="number 4"]
+    165 [label="expr statement"]
+    164 [label="call"]
+    157 [label="assert"]
+    163 [label="=="]
+    161 [label="selector"]
+    159 [label="v"]
+    160 [label="z"]
+    162 [label="number 9"]
+    169 [label="="]
+    167 [label="aa"]
+    168 [label="number 5"]
+    177 [label="="]
+    171 [label="aa"]
+    176 [label="call"]
+    173 [label="factorial"]
+    175 [label="aa"]
+    178 [label="var SIX"]
+    179 [label="number 6"]
+    187 [label="="]
+    181 [label="bb"]
+    186 [label="call"]
+    183 [label="factorial"]
+    185 [label="SIX"]
+    195 [label="="]
+    189 [label="cc"]
+    194 [label="+"]
+    191 [label="aa"]
+    193 [label="bb"]
+    196 [label="var x"]
+    200 [label="call"]
+    198 [label="factorial"]
+    199 [label="number 10"]
+    208 [label="expr statement"]
+    207 [label="call"]
+    202 [label="assert"]
+    206 [label="=="]
+    204 [label="aa"]
+    205 [label="number 120"]
+    212 [label="+="]
+    210 [label="aa"]
+    211 [label="number 5"]
+    220 [label="expr statement"]
+    219 [label="call"]
+    214 [label="assert"]
+    218 [label="=="]
+    216 [label="aa"]
+    217 [label="number 125"]
+    224 [label="-="]
+    222 [label="aa"]
+    223 [label="number 3"]
+    232 [label="expr statement"]
+    231 [label="call"]
+    226 [label="assert"]
+    230 [label="=="]
+    228 [label="aa"]
+    229 [label="number 122"]
+    236 [label="*="]
+    234 [label="aa"]
+    235 [label="number 2"]
+    244 [label="expr statement"]
+    243 [label="call"]
+    238 [label="assert"]
+    242 [label="=="]
+    240 [label="aa"]
+    241 [label="number 244"]
+    252 [label="expr statement"]
+    251 [label="call"]
+    246 [label="assert"]
+    250 [label="=="]
+    248 [label="bb"]
+    249 [label="number 720"]
+    260 [label="expr statement"]
+    259 [label="call"]
+    254 [label="assert"]
+    258 [label="=="]
+    256 [label="cc"]
+    257 [label="number 840"]
+    268 [label="expr statement"]
+    267 [label="call"]
+    262 [label="assert"]
+    266 [label="=="]
+    264 [label="x"]
+    265 [label="number 3628800"]
+    269 [label="var foozlebarzle"]
+    270 [label="number 123"]
+    278 [label="expr statement"]
+    277 [label="call"]
+    272 [label="assert"]
+    276 [label="=="]
+    274 [label="foozlebarzle"]
+    275 [label="number 123"]
+    279 [label="proc floats"]
+    281 [label="scope"]
+    282 [label="var f"]
+    285 [label="/"]
+    283 [label="number 1.000"]
+    284 [label="number 2.000"]
+    291 [label="expr statement"]
+    290 [label="call"]
+    287 [label="__print_float"]
+    289 [label="f"]
+    301 [label="expr statement"]
+    300 [label="call"]
+    293 [label="assert"]
+    299 [label="=="]
+    294 [label="typeof"]
+    296 [label="f"]
+    298 [label="float"]
+    311 [label="expr statement"]
+    310 [label="call"]
+    303 [label="assert"]
+    309 [label="=="]
+    304 [label="typeof"]
+    306 [label="f"]
+    308 [label="f64"]
+    312 [label="proc int_sizes"]
+    314 [label="scope"]
+    315 [label="var a"]
+    317 [label="i64"]
+    318 [label="var b"]
+    320 [label="i32"]
+    321 [label="var c"]
+    323 [label="i16"]
+    324 [label="var d"]
+    326 [label="i8"]
+    335 [label="expr statement"]
+    334 [label="call"]
+    328 [label="assert"]
+    333 [label="=="]
+    329 [label="sizeof"]
+    331 [label="i64"]
+    332 [label="number 8"]
+    344 [label="expr statement"]
+    343 [label="call"]
+    337 [label="assert"]
+    342 [label="=="]
+    338 [label="sizeof"]
+    340 [label="i32"]
+    341 [label="number 4"]
+    353 [label="expr statement"]
+    352 [label="call"]
+    346 [label="assert"]
+    351 [label="=="]
+    347 [label="sizeof"]
+    349 [label="i16"]
+    350 [label="number 2"]
+    362 [label="expr statement"]
+    361 [label="call"]
+    355 [label="assert"]
+    360 [label="=="]
+    356 [label="sizeof"]
+    358 [label="i8"]
+    359 [label="number 1"]
+    371 [label="expr statement"]
+    370 [label="call"]
+    364 [label="assert"]
+    369 [label="=="]
+    365 [label="sizeof"]
+    367 [label="a"]
+    368 [label="number 8"]
+    380 [label="expr statement"]
+    379 [label="call"]
+    373 [label="assert"]
+    378 [label="=="]
+    374 [label="sizeof"]
+    376 [label="b"]
+    377 [label="number 4"]
+    389 [label="expr statement"]
+    388 [label="call"]
+    382 [label="assert"]
+    387 [label="=="]
+    383 [label="sizeof"]
+    385 [label="c"]
+    386 [label="number 2"]
+    398 [label="expr statement"]
+    397 [label="call"]
+    391 [label="assert"]
+    396 [label="=="]
+    392 [label="sizeof"]
+    394 [label="d"]
+    395 [label="number 1"]
+    408 [label="expr statement"]
+    407 [label="call"]
+    400 [label="assert"]
+    406 [label="=="]
+    401 [label="sizeof"]
+    404 [label="^int"]
+    403 [label="int"]
+    405 [label="number 8"]
+    418 [label="expr statement"]
+    417 [label="call"]
+    410 [label="assert"]
+    416 [label="=="]
+    411 [label="sizeof"]
+    414 [label="[]int"]
+    413 [label="int"]
+    415 [label="number 16"]
+    419 [label="proc type_alias"]
+    421 [label="scope"]
+    422 [label="var My_Int"]
+    424 [label="int"]
+    425 [label="var a"]
+    427 [label="My_Int"]
+    428 [label="number 12"]
+    435 [label="+="]
+    430 [label="a"]
+    434 [label="+"]
+    432 [label="a"]
+    433 [label="number 12"]
+    443 [label="expr statement"]
+    442 [label="call"]
+    437 [label="assert"]
+    441 [label="=="]
+    439 [label="a"]
+    440 [label="number 36"]
+    444 [label="var My_Vec"]
+    446 [label="Vector3"]
+    447 [label="var v"]
+    449 [label="My_Vec"]
+    455 [label="="]
+    453 [label="selector"]
+    451 [label="v"]
+    452 [label="x"]
+    454 [label="number 1"]
+    461 [label="="]
+    459 [label="selector"]
+    457 [label="v"]
+    458 [label="y"]
+    460 [label="number 4"]
+    467 [label="="]
+    465 [label="selector"]
+    463 [label="v"]
+    464 [label="z"]
+    466 [label="number 9"]
+    477 [label="expr statement"]
+    476 [label="call"]
+    469 [label="assert"]
+    475 [label="=="]
+    473 [label="selector"]
+    471 [label="v"]
+    472 [label="x"]
+    474 [label="number 1"]
+    487 [label="expr statement"]
+    486 [label="call"]
+    479 [label="assert"]
+    485 [label="=="]
+    483 [label="selector"]
+    481 [label="v"]
+    482 [label="y"]
+    484 [label="number 4"]
+    497 [label="expr statement"]
+    496 [label="call"]
+    489 [label="assert"]
+    495 [label="=="]
+    493 [label="selector"]
+    491 [label="v"]
+    492 [label="z"]
+    494 [label="number 9"]
+    498 [label="proc bool_stuff"]
+    500 [label="scope"]
+    501 [label="var t"]
+    504 [label="=="]
+    502 [label="number 1"]
+    503 [label="number 1"]
+    514 [label="expr statement"]
+    513 [label="call"]
+    506 [label="assert"]
+    512 [label="=="]
+    507 [label="typeof"]
+    509 [label="t"]
+    511 [label="bool"]
+    522 [label="expr statement"]
+    521 [label="call"]
     516 [label="assert"]
-    518 [label="thing"]
-    529 [label="if"]
-    521 [label="!"]
-    523 [label="t"]
-    524 [label="scope"]
+    520 [label="=="]
+    518 [label="t"]
+    519 [label="true"]
     528 [label="expr statement"]
     527 [label="call"]
-    526 [label="panic"]
-    537 [label="if"]
-    531 [label="f"]
-    532 [label="scope"]
-    536 [label="expr statement"]
-    535 [label="call"]
-    534 [label="panic"]
-    538 [label="var global_var"]
-    540 [label="int"]
-    541 [label="proc pointers"]
-    543 [label="scope"]
-    544 [label="var some_int"]
-    545 [label="number 123"]
-    553 [label="expr statement"]
-    552 [label="call"]
-    547 [label="assert"]
-    551 [label="=="]
-    549 [label="some_int"]
-    550 [label="number 123"]
-    560 [label="="]
-    558 [label="dereference"]
-    557 [label="paren"]
-    554 [label="address of"]
-    556 [label="some_int"]
-    559 [label="number 442"]
-    568 [label="expr statement"]
-    567 [label="call"]
-    562 [label="assert"]
-    566 [label="=="]
-    564 [label="some_int"]
-    565 [label="number 442"]
-    569 [label="var thing"]
-    574 [label="dereference"]
-    573 [label="paren"]
-    570 [label="address of"]
-    572 [label="some_int"]
-    583 [label="expr statement"]
-    582 [label="call"]
-    576 [label="assert"]
-    581 [label="=="]
-    578 [label="thing"]
-    580 [label="some_int"]
-    584 [label="var ptr"]
-    585 [label="address of"]
-    587 [label="some_int"]
-    597 [label="expr statement"]
-    596 [label="call"]
-    589 [label="assert"]
-    595 [label="=="]
-    592 [label="dereference"]
-    591 [label="ptr"]
-    594 [label="some_int"]
-    602 [label="="]
-    600 [label="dereference"]
-    599 [label="ptr"]
-    601 [label="number 321"]
-    610 [label="expr statement"]
-    609 [label="call"]
-    604 [label="assert"]
-    608 [label="=="]
+    524 [label="assert"]
+    526 [label="t"]
+    529 [label="var f"]
+    532 [label="=="]
+    530 [label="number 1"]
+    531 [label="number 2"]
+    543 [label="expr statement"]
+    542 [label="call"]
+    534 [label="assert"]
+    541 [label="=="]
+    535 [label="typeof"]
+    537 [label="t"]
+    538 [label="typeof"]
+    540 [label="f"]
+    551 [label="expr statement"]
+    550 [label="call"]
+    545 [label="assert"]
+    549 [label="=="]
+    547 [label="f"]
+    548 [label="false"]
+    558 [label="expr statement"]
+    557 [label="call"]
+    553 [label="assert"]
+    554 [label="!"]
+    556 [label="f"]
+    559 [label="var thing"]
+    560 [label="typeof"]
+    563 [label="=="]
+    561 [label="number 1"]
+    562 [label="number 1"]
+    564 [label="true"]
+    570 [label="expr statement"]
+    569 [label="call"]
+    566 [label="assert"]
+    568 [label="thing"]
+    579 [label="if"]
+    571 [label="!"]
+    573 [label="t"]
+    574 [label="scope"]
+    578 [label="expr statement"]
+    577 [label="call"]
+    576 [label="panic"]
+    587 [label="if"]
+    581 [label="f"]
+    582 [label="scope"]
+    586 [label="expr statement"]
+    585 [label="call"]
+    584 [label="panic"]
+    588 [label="var global_var"]
+    590 [label="int"]
+    591 [label="proc pointers"]
+    593 [label="scope"]
+    594 [label="var some_int"]
+    595 [label="number 123"]
+    603 [label="expr statement"]
+    602 [label="call"]
+    597 [label="assert"]
+    601 [label="=="]
+    599 [label="some_int"]
+    600 [label="number 123"]
+    610 [label="="]
+    608 [label="dereference"]
+    607 [label="paren"]
+    604 [label="address of"]
     606 [label="some_int"]
-    607 [label="number 321"]
-    620 [label="expr statement"]
-    619 [label="call"]
+    609 [label="number 442"]
+    618 [label="expr statement"]
+    617 [label="call"]
     612 [label="assert"]
-    618 [label="=="]
+    616 [label="=="]
     614 [label="some_int"]
-    617 [label="dereference"]
-    616 [label="ptr"]
-    621 [label="var ptr_ptr"]
-    622 [label="address of"]
-    624 [label="ptr"]
-    630 [label="="]
-    628 [label="dereference"]
-    627 [label="dereference"]
-    626 [label="ptr_ptr"]
-    629 [label="number 112"]
-    638 [label="expr statement"]
-    637 [label="call"]
-    632 [label="assert"]
-    636 [label="=="]
-    634 [label="some_int"]
-    635 [label="number 112"]
-    649 [label="expr statement"]
-    648 [label="call"]
-    640 [label="assert"]
-    647 [label="=="]
-    642 [label="some_int"]
-    646 [label="dereference"]
-    645 [label="dereference"]
-    644 [label="ptr_ptr"]
-    650 [label="var global_ptr"]
-    651 [label="address of"]
-    653 [label="global_var"]
-    658 [label="+="]
-    656 [label="dereference"]
-    655 [label="global_ptr"]
-    657 [label="number 13"]
-    666 [label="expr statement"]
-    665 [label="call"]
-    660 [label="assert"]
-    664 [label="=="]
-    662 [label="global_var"]
-    663 [label="number 13"]
-    676 [label="expr statement"]
-    675 [label="call"]
-    668 [label="assert"]
-    674 [label="=="]
-    670 [label="global_var"]
-    673 [label="dereference"]
-    672 [label="global_ptr"]
-    677 [label="var v"]
-    679 [label="Vector3"]
-    680 [label="var y_ptr"]
-    681 [label="address of"]
-    685 [label="selector"]
-    683 [label="v"]
-    684 [label="y"]
-    690 [label="="]
-    688 [label="dereference"]
-    687 [label="y_ptr"]
-    689 [label="number 149"]
-    700 [label="expr statement"]
-    699 [label="call"]
-    692 [label="assert"]
-    698 [label="=="]
-    696 [label="selector"]
-    694 [label="v"]
-    695 [label="y"]
-    697 [label="number 149"]
-    701 [label="var global_var_with_init"]
-    702 [label="number 21"]
-    703 [label="var v"]
-    705 [label="Vector3"]
-    706 [label="proc main"]
-    708 [label="scope"]
+    615 [label="number 442"]
+    619 [label="var thing"]
+    624 [label="dereference"]
+    623 [label="paren"]
+    620 [label="address of"]
+    622 [label="some_int"]
+    633 [label="expr statement"]
+    632 [label="call"]
+    626 [label="assert"]
+    631 [label="=="]
+    628 [label="thing"]
+    630 [label="some_int"]
+    634 [label="var ptr"]
+    635 [label="address of"]
+    637 [label="some_int"]
+    647 [label="expr statement"]
+    646 [label="call"]
+    639 [label="assert"]
+    645 [label="=="]
+    642 [label="dereference"]
+    641 [label="ptr"]
+    644 [label="some_int"]
+    652 [label="="]
+    650 [label="dereference"]
+    649 [label="ptr"]
+    651 [label="number 321"]
+    660 [label="expr statement"]
+    659 [label="call"]
+    654 [label="assert"]
+    658 [label="=="]
+    656 [label="some_int"]
+    657 [label="number 321"]
+    670 [label="expr statement"]
+    669 [label="call"]
+    662 [label="assert"]
+    668 [label="=="]
+    664 [label="some_int"]
+    667 [label="dereference"]
+    666 [label="ptr"]
+    671 [label="var ptr_ptr"]
+    672 [label="address of"]
+    674 [label="ptr"]
+    680 [label="="]
+    678 [label="dereference"]
+    677 [label="dereference"]
+    676 [label="ptr_ptr"]
+    679 [label="number 112"]
+    688 [label="expr statement"]
+    687 [label="call"]
+    682 [label="assert"]
+    686 [label="=="]
+    684 [label="some_int"]
+    685 [label="number 112"]
+    699 [label="expr statement"]
+    698 [label="call"]
+    690 [label="assert"]
+    697 [label="=="]
+    692 [label="some_int"]
+    696 [label="dereference"]
+    695 [label="dereference"]
+    694 [label="ptr_ptr"]
+    700 [label="var global_ptr"]
+    701 [label="address of"]
+    703 [label="global_var"]
+    708 [label="+="]
+    706 [label="dereference"]
+    705 [label="global_ptr"]
+    707 [label="number 13"]
     716 [label="expr statement"]
     715 [label="call"]
     710 [label="assert"]
     714 [label="=="]
-    712 [label="global_var_with_init"]
-    713 [label="number 21"]
-    722 [label="="]
-    720 [label="selector"]
-    718 [label="v"]
-    719 [label="z"]
-    721 [label="number 123"]
-    732 [label="expr statement"]
-    731 [label="call"]
-    724 [label="assert"]
-    730 [label="=="]
-    728 [label="selector"]
-    726 [label="v"]
-    727 [label="z"]
-    729 [label="number 123"]
-    736 [label="expr statement"]
-    735 [label="call"]
-    734 [label="things"]
-    740 [label="expr statement"]
-    739 [label="call"]
-    738 [label="int_sizes"]
-    744 [label="expr statement"]
-    743 [label="call"]
-    742 [label="type_alias"]
-    748 [label="expr statement"]
-    747 [label="call"]
-    746 [label="bool_stuff"]
-    752 [label="expr statement"]
-    751 [label="call"]
-    750 [label="pointers"]
-    757 [label="expr statement"]
-    756 [label="call"]
-    754 [label="print"]
-    755 [label="number 123"]
+    712 [label="global_var"]
+    713 [label="number 13"]
+    726 [label="expr statement"]
+    725 [label="call"]
+    718 [label="assert"]
+    724 [label="=="]
+    720 [label="global_var"]
+    723 [label="dereference"]
+    722 [label="global_ptr"]
+    727 [label="var v"]
+    729 [label="Vector3"]
+    730 [label="var y_ptr"]
+    731 [label="address of"]
+    735 [label="selector"]
+    733 [label="v"]
+    734 [label="y"]
+    740 [label="="]
+    738 [label="dereference"]
+    737 [label="y_ptr"]
+    739 [label="number 149"]
+    750 [label="expr statement"]
+    749 [label="call"]
+    742 [label="assert"]
+    748 [label="=="]
+    746 [label="selector"]
+    744 [label="v"]
+    745 [label="y"]
+    747 [label="number 149"]
+    751 [label="var global_var_with_init"]
+    752 [label="number 21"]
+    753 [label="var v"]
+    755 [label="Vector3"]
+    756 [label="proc main"]
+    758 [label="scope"]
+    766 [label="expr statement"]
+    765 [label="call"]
+    760 [label="assert"]
+    764 [label="=="]
+    762 [label="global_var_with_init"]
+    763 [label="number 21"]
+    772 [label="="]
+    770 [label="selector"]
+    768 [label="v"]
+    769 [label="z"]
+    771 [label="number 123"]
+    782 [label="expr statement"]
+    781 [label="call"]
+    774 [label="assert"]
+    780 [label="=="]
+    778 [label="selector"]
+    776 [label="v"]
+    777 [label="z"]
+    779 [label="number 123"]
+    786 [label="expr statement"]
+    785 [label="call"]
+    784 [label="things"]
+    790 [label="expr statement"]
+    789 [label="call"]
+    788 [label="floats"]
+    794 [label="expr statement"]
+    793 [label="call"]
+    792 [label="int_sizes"]
+    798 [label="expr statement"]
+    797 [label="call"]
+    796 [label="type_alias"]
+    802 [label="expr statement"]
+    801 [label="call"]
+    800 [label="bool_stuff"]
+    806 [label="expr statement"]
+    805 [label="call"]
+    804 [label="pointers"]
+    811 [label="expr statement"]
+    810 [label="call"]
+    808 [label="print_int"]
+    809 [label="number 123"]
     2 -> 3
-    3 -> 48
-    48 -> 4
+    3 -> 65
+    65 -> 4
     4 -> 5
     5 -> 6
     5 -> 8
@@ -582,564 +620,602 @@ digraph g {
     5 -> 13
     13 -> 15
     15 -> 17
-    13 -> 18
-    18 -> 24
-    24 -> 23
-    23 -> 20
-    23 -> 22
-    5 -> 25
-    25 -> 27
-    27 -> 29
-    25 -> 30
-    30 -> 40
-    40 -> 34
-    34 -> 32
-    34 -> 33
-    40 -> 35
-    35 -> 39
-    39 -> 38
-    38 -> 37
-    5 -> 41
-    41 -> 43
-    43 -> 47
-    47 -> 46
-    46 -> 45
-    3 -> 49
-    49 -> 51
-    3 -> 52
-    52 -> 54
-    3 -> 55
-    55 -> 57
-    3 -> 58
-    58 -> 59
-    59 -> 61
-    58 -> 62
-    62 -> 64
-    58 -> 65
-    65 -> 67
-    3 -> 68
-    68 -> 70
-    70 -> 72
-    68 -> 74
-    68 -> 75
-    75 -> 83
-    83 -> 79
-    79 -> 77
-    79 -> 78
-    83 -> 80
-    80 -> 81
-    81 -> 82
-    75 -> 84
-    84 -> 94
-    94 -> 86
-    94 -> 93
-    93 -> 88
-    93 -> 92
-    92 -> 90
-    92 -> 91
-    3 -> 95
-    95 -> 97
+    5 -> 18
+    18 -> 20
+    20 -> 22
+    18 -> 23
+    23 -> 29
+    29 -> 28
+    28 -> 25
+    28 -> 27
+    5 -> 30
+    30 -> 32
+    32 -> 34
+    30 -> 35
+    35 -> 41
+    41 -> 40
+    40 -> 37
+    40 -> 39
+    5 -> 42
+    42 -> 44
+    44 -> 46
+    42 -> 47
+    47 -> 57
+    57 -> 51
+    51 -> 49
+    51 -> 50
+    57 -> 52
+    52 -> 56
+    56 -> 55
+    55 -> 54
+    5 -> 58
+    58 -> 60
+    60 -> 64
+    64 -> 63
+    63 -> 62
+    3 -> 66
+    66 -> 68
+    3 -> 69
+    69 -> 71
+    3 -> 72
+    72 -> 74
+    3 -> 75
+    75 -> 76
+    76 -> 78
+    75 -> 79
+    79 -> 81
+    75 -> 82
+    82 -> 84
+    3 -> 85
+    85 -> 87
+    87 -> 89
+    85 -> 91
+    85 -> 92
+    92 -> 100
+    100 -> 96
+    96 -> 94
+    96 -> 95
+    100 -> 97
     97 -> 98
-    98 -> 100
-    97 -> 106
-    106 -> 104
-    104 -> 102
-    104 -> 103
-    106 -> 105
-    97 -> 112
-    112 -> 110
-    110 -> 108
+    98 -> 99
+    92 -> 101
+    101 -> 111
+    111 -> 103
+    111 -> 110
+    110 -> 105
     110 -> 109
-    112 -> 111
-    97 -> 118
-    118 -> 116
-    116 -> 114
-    116 -> 115
-    118 -> 117
-    97 -> 128
-    128 -> 127
-    127 -> 120
+    109 -> 107
+    109 -> 108
+    3 -> 112
+    112 -> 114
+    114 -> 115
+    115 -> 117
+    114 -> 123
+    123 -> 121
+    121 -> 119
+    121 -> 120
+    123 -> 122
+    114 -> 129
+    129 -> 127
+    127 -> 125
     127 -> 126
-    126 -> 124
-    124 -> 122
-    124 -> 123
-    126 -> 125
-    97 -> 138
-    138 -> 137
-    137 -> 130
-    137 -> 136
-    136 -> 134
-    134 -> 132
-    134 -> 133
-    136 -> 135
-    97 -> 148
-    148 -> 147
-    147 -> 140
-    147 -> 146
-    146 -> 144
-    144 -> 142
+    129 -> 128
+    114 -> 135
+    135 -> 133
+    133 -> 131
+    133 -> 132
+    135 -> 134
+    114 -> 145
+    145 -> 144
+    144 -> 137
     144 -> 143
-    146 -> 145
-    97 -> 152
-    152 -> 150
-    152 -> 151
-    97 -> 160
-    160 -> 154
-    160 -> 159
-    159 -> 156
-    159 -> 158
-    97 -> 161
-    161 -> 162
-    97 -> 170
-    170 -> 164
-    170 -> 169
-    169 -> 166
+    143 -> 141
+    141 -> 139
+    141 -> 140
+    143 -> 142
+    114 -> 155
+    155 -> 154
+    154 -> 147
+    154 -> 153
+    153 -> 151
+    151 -> 149
+    151 -> 150
+    153 -> 152
+    114 -> 165
+    165 -> 164
+    164 -> 157
+    164 -> 163
+    163 -> 161
+    161 -> 159
+    161 -> 160
+    163 -> 162
+    114 -> 169
+    169 -> 167
     169 -> 168
-    97 -> 178
-    178 -> 172
-    178 -> 177
-    177 -> 174
+    114 -> 177
+    177 -> 171
     177 -> 176
-    97 -> 179
-    179 -> 183
-    183 -> 181
-    183 -> 182
-    97 -> 191
-    191 -> 190
-    190 -> 185
-    190 -> 189
-    189 -> 187
-    189 -> 188
-    97 -> 195
-    195 -> 193
+    176 -> 173
+    176 -> 175
+    114 -> 178
+    178 -> 179
+    114 -> 187
+    187 -> 181
+    187 -> 186
+    186 -> 183
+    186 -> 185
+    114 -> 195
+    195 -> 189
     195 -> 194
-    97 -> 203
-    203 -> 202
-    202 -> 197
-    202 -> 201
-    201 -> 199
-    201 -> 200
-    97 -> 207
-    207 -> 205
+    194 -> 191
+    194 -> 193
+    114 -> 196
+    196 -> 200
+    200 -> 198
+    200 -> 199
+    114 -> 208
+    208 -> 207
+    207 -> 202
     207 -> 206
-    97 -> 215
-    215 -> 214
-    214 -> 209
-    214 -> 213
-    213 -> 211
-    213 -> 212
-    97 -> 219
-    219 -> 217
+    206 -> 204
+    206 -> 205
+    114 -> 212
+    212 -> 210
+    212 -> 211
+    114 -> 220
+    220 -> 219
+    219 -> 214
     219 -> 218
-    97 -> 227
-    227 -> 226
-    226 -> 221
-    226 -> 225
-    225 -> 223
-    225 -> 224
-    97 -> 235
-    235 -> 234
-    234 -> 229
-    234 -> 233
-    233 -> 231
-    233 -> 232
-    97 -> 243
+    218 -> 216
+    218 -> 217
+    114 -> 224
+    224 -> 222
+    224 -> 223
+    114 -> 232
+    232 -> 231
+    231 -> 226
+    231 -> 230
+    230 -> 228
+    230 -> 229
+    114 -> 236
+    236 -> 234
+    236 -> 235
+    114 -> 244
+    244 -> 243
+    243 -> 238
     243 -> 242
-    242 -> 237
+    242 -> 240
     242 -> 241
-    241 -> 239
-    241 -> 240
-    97 -> 251
+    114 -> 252
+    252 -> 251
+    251 -> 246
     251 -> 250
-    250 -> 245
+    250 -> 248
     250 -> 249
-    249 -> 247
-    249 -> 248
-    97 -> 252
-    252 -> 253
-    97 -> 261
-    261 -> 260
-    260 -> 255
+    114 -> 260
     260 -> 259
-    259 -> 257
+    259 -> 254
     259 -> 258
-    3 -> 262
-    262 -> 264
-    264 -> 265
-    265 -> 267
-    264 -> 268
-    268 -> 270
-    264 -> 271
-    271 -> 273
-    264 -> 274
-    274 -> 276
-    264 -> 285
-    285 -> 284
-    284 -> 278
-    284 -> 283
-    283 -> 279
+    258 -> 256
+    258 -> 257
+    114 -> 268
+    268 -> 267
+    267 -> 262
+    267 -> 266
+    266 -> 264
+    266 -> 265
+    114 -> 269
+    269 -> 270
+    114 -> 278
+    278 -> 277
+    277 -> 272
+    277 -> 276
+    276 -> 274
+    276 -> 275
+    3 -> 279
     279 -> 281
-    283 -> 282
-    264 -> 294
-    294 -> 293
-    293 -> 287
-    293 -> 292
-    292 -> 288
-    288 -> 290
-    292 -> 291
-    264 -> 303
-    303 -> 302
-    302 -> 296
-    302 -> 301
-    301 -> 297
-    297 -> 299
+    281 -> 282
+    282 -> 285
+    285 -> 283
+    285 -> 284
+    281 -> 291
+    291 -> 290
+    290 -> 287
+    290 -> 289
+    281 -> 301
     301 -> 300
-    264 -> 312
-    312 -> 311
-    311 -> 305
+    300 -> 293
+    300 -> 299
+    299 -> 294
+    294 -> 296
+    299 -> 298
+    281 -> 311
     311 -> 310
-    310 -> 306
-    306 -> 308
+    310 -> 303
     310 -> 309
-    264 -> 321
-    321 -> 320
-    320 -> 314
-    320 -> 319
-    319 -> 315
+    309 -> 304
+    304 -> 306
+    309 -> 308
+    3 -> 312
+    312 -> 314
+    314 -> 315
     315 -> 317
-    319 -> 318
-    264 -> 330
-    330 -> 329
-    329 -> 323
-    329 -> 328
-    328 -> 324
+    314 -> 318
+    318 -> 320
+    314 -> 321
+    321 -> 323
+    314 -> 324
     324 -> 326
-    328 -> 327
-    264 -> 339
-    339 -> 338
-    338 -> 332
-    338 -> 337
-    337 -> 333
-    333 -> 335
-    337 -> 336
-    264 -> 348
-    348 -> 347
-    347 -> 341
-    347 -> 346
-    346 -> 342
-    342 -> 344
-    346 -> 345
-    264 -> 358
-    358 -> 357
-    357 -> 350
-    357 -> 356
-    356 -> 351
-    351 -> 354
-    354 -> 353
-    356 -> 355
-    264 -> 368
-    368 -> 367
-    367 -> 360
-    367 -> 366
-    366 -> 361
-    361 -> 364
-    364 -> 363
-    366 -> 365
-    3 -> 369
-    369 -> 371
-    371 -> 372
-    372 -> 374
-    371 -> 375
-    375 -> 377
-    375 -> 378
-    371 -> 385
-    385 -> 380
-    385 -> 384
-    384 -> 382
-    384 -> 383
-    371 -> 393
-    393 -> 392
-    392 -> 387
-    392 -> 391
-    391 -> 389
-    391 -> 390
-    371 -> 394
-    394 -> 396
-    371 -> 397
-    397 -> 399
-    371 -> 405
-    405 -> 403
-    403 -> 401
-    403 -> 402
-    405 -> 404
-    371 -> 411
-    411 -> 409
-    409 -> 407
-    409 -> 408
-    411 -> 410
-    371 -> 417
-    417 -> 415
-    415 -> 413
-    415 -> 414
+    314 -> 335
+    335 -> 334
+    334 -> 328
+    334 -> 333
+    333 -> 329
+    329 -> 331
+    333 -> 332
+    314 -> 344
+    344 -> 343
+    343 -> 337
+    343 -> 342
+    342 -> 338
+    338 -> 340
+    342 -> 341
+    314 -> 353
+    353 -> 352
+    352 -> 346
+    352 -> 351
+    351 -> 347
+    347 -> 349
+    351 -> 350
+    314 -> 362
+    362 -> 361
+    361 -> 355
+    361 -> 360
+    360 -> 356
+    356 -> 358
+    360 -> 359
+    314 -> 371
+    371 -> 370
+    370 -> 364
+    370 -> 369
+    369 -> 365
+    365 -> 367
+    369 -> 368
+    314 -> 380
+    380 -> 379
+    379 -> 373
+    379 -> 378
+    378 -> 374
+    374 -> 376
+    378 -> 377
+    314 -> 389
+    389 -> 388
+    388 -> 382
+    388 -> 387
+    387 -> 383
+    383 -> 385
+    387 -> 386
+    314 -> 398
+    398 -> 397
+    397 -> 391
+    397 -> 396
+    396 -> 392
+    392 -> 394
+    396 -> 395
+    314 -> 408
+    408 -> 407
+    407 -> 400
+    407 -> 406
+    406 -> 401
+    401 -> 404
+    404 -> 403
+    406 -> 405
+    314 -> 418
+    418 -> 417
+    417 -> 410
     417 -> 416
-    371 -> 427
-    427 -> 426
-    426 -> 419
-    426 -> 425
-    425 -> 423
-    423 -> 421
-    423 -> 422
-    425 -> 424
-    371 -> 437
-    437 -> 436
-    436 -> 429
-    436 -> 435
-    435 -> 433
-    433 -> 431
-    433 -> 432
+    416 -> 411
+    411 -> 414
+    414 -> 413
+    416 -> 415
+    3 -> 419
+    419 -> 421
+    421 -> 422
+    422 -> 424
+    421 -> 425
+    425 -> 427
+    425 -> 428
+    421 -> 435
+    435 -> 430
     435 -> 434
-    371 -> 447
-    447 -> 446
-    446 -> 439
-    446 -> 445
-    445 -> 443
-    443 -> 441
+    434 -> 432
+    434 -> 433
+    421 -> 443
     443 -> 442
-    445 -> 444
-    3 -> 448
-    448 -> 450
-    450 -> 451
-    451 -> 454
-    454 -> 452
-    454 -> 453
-    450 -> 464
-    464 -> 463
-    463 -> 456
-    463 -> 462
-    462 -> 457
-    457 -> 459
-    462 -> 461
-    450 -> 472
-    472 -> 471
-    471 -> 466
-    471 -> 470
-    470 -> 468
-    470 -> 469
-    450 -> 478
-    478 -> 477
-    477 -> 474
+    442 -> 437
+    442 -> 441
+    441 -> 439
+    441 -> 440
+    421 -> 444
+    444 -> 446
+    421 -> 447
+    447 -> 449
+    421 -> 455
+    455 -> 453
+    453 -> 451
+    453 -> 452
+    455 -> 454
+    421 -> 461
+    461 -> 459
+    459 -> 457
+    459 -> 458
+    461 -> 460
+    421 -> 467
+    467 -> 465
+    465 -> 463
+    465 -> 464
+    467 -> 466
+    421 -> 477
     477 -> 476
-    450 -> 479
-    479 -> 482
-    482 -> 480
-    482 -> 481
-    450 -> 493
+    476 -> 469
+    476 -> 475
+    475 -> 473
+    473 -> 471
+    473 -> 472
+    475 -> 474
+    421 -> 487
+    487 -> 486
+    486 -> 479
+    486 -> 485
+    485 -> 483
+    483 -> 481
+    483 -> 482
+    485 -> 484
+    421 -> 497
+    497 -> 496
+    496 -> 489
+    496 -> 495
+    495 -> 493
+    493 -> 491
     493 -> 492
-    492 -> 484
-    492 -> 491
-    491 -> 485
-    485 -> 487
-    491 -> 488
-    488 -> 490
-    450 -> 501
-    501 -> 500
-    500 -> 495
-    500 -> 499
-    499 -> 497
-    499 -> 498
-    450 -> 508
-    508 -> 507
-    507 -> 503
-    507 -> 504
-    504 -> 506
-    450 -> 509
-    509 -> 510
-    510 -> 513
-    513 -> 511
+    495 -> 494
+    3 -> 498
+    498 -> 500
+    500 -> 501
+    501 -> 504
+    504 -> 502
+    504 -> 503
+    500 -> 514
+    514 -> 513
+    513 -> 506
     513 -> 512
-    509 -> 514
-    450 -> 520
+    512 -> 507
+    507 -> 509
+    512 -> 511
+    500 -> 522
+    522 -> 521
+    521 -> 516
+    521 -> 520
+    520 -> 518
     520 -> 519
-    519 -> 516
-    519 -> 518
-    450 -> 529
-    529 -> 521
-    521 -> 523
-    529 -> 524
-    524 -> 528
+    500 -> 528
     528 -> 527
+    527 -> 524
     527 -> 526
-    450 -> 537
-    537 -> 531
-    537 -> 532
-    532 -> 536
-    536 -> 535
-    535 -> 534
-    3 -> 538
+    500 -> 529
+    529 -> 532
+    532 -> 530
+    532 -> 531
+    500 -> 543
+    543 -> 542
+    542 -> 534
+    542 -> 541
+    541 -> 535
+    535 -> 537
+    541 -> 538
     538 -> 540
-    3 -> 541
-    541 -> 543
-    543 -> 544
-    544 -> 545
-    543 -> 553
-    553 -> 552
-    552 -> 547
-    552 -> 551
-    551 -> 549
+    500 -> 551
     551 -> 550
-    543 -> 560
-    560 -> 558
+    550 -> 545
+    550 -> 549
+    549 -> 547
+    549 -> 548
+    500 -> 558
     558 -> 557
+    557 -> 553
     557 -> 554
     554 -> 556
-    560 -> 559
-    543 -> 568
-    568 -> 567
-    567 -> 562
-    567 -> 566
-    566 -> 564
-    566 -> 565
-    543 -> 569
-    569 -> 574
-    574 -> 573
-    573 -> 570
-    570 -> 572
-    543 -> 583
-    583 -> 582
-    582 -> 576
-    582 -> 581
-    581 -> 578
-    581 -> 580
-    543 -> 584
-    584 -> 585
-    585 -> 587
-    543 -> 597
-    597 -> 596
-    596 -> 589
-    596 -> 595
-    595 -> 592
-    592 -> 591
-    595 -> 594
-    543 -> 602
-    602 -> 600
-    600 -> 599
+    500 -> 559
+    559 -> 560
+    560 -> 563
+    563 -> 561
+    563 -> 562
+    559 -> 564
+    500 -> 570
+    570 -> 569
+    569 -> 566
+    569 -> 568
+    500 -> 579
+    579 -> 571
+    571 -> 573
+    579 -> 574
+    574 -> 578
+    578 -> 577
+    577 -> 576
+    500 -> 587
+    587 -> 581
+    587 -> 582
+    582 -> 586
+    586 -> 585
+    585 -> 584
+    3 -> 588
+    588 -> 590
+    3 -> 591
+    591 -> 593
+    593 -> 594
+    594 -> 595
+    593 -> 603
+    603 -> 602
+    602 -> 597
     602 -> 601
-    543 -> 610
-    610 -> 609
-    609 -> 604
-    609 -> 608
-    608 -> 606
+    601 -> 599
+    601 -> 600
+    593 -> 610
+    610 -> 608
     608 -> 607
-    543 -> 620
-    620 -> 619
-    619 -> 612
-    619 -> 618
-    618 -> 614
+    607 -> 604
+    604 -> 606
+    610 -> 609
+    593 -> 618
     618 -> 617
+    617 -> 612
     617 -> 616
-    543 -> 621
-    621 -> 622
-    622 -> 624
-    543 -> 630
-    630 -> 628
-    628 -> 627
-    627 -> 626
-    630 -> 629
-    543 -> 638
-    638 -> 637
-    637 -> 632
-    637 -> 636
-    636 -> 634
-    636 -> 635
-    543 -> 649
-    649 -> 648
-    648 -> 640
-    648 -> 647
-    647 -> 642
+    616 -> 614
+    616 -> 615
+    593 -> 619
+    619 -> 624
+    624 -> 623
+    623 -> 620
+    620 -> 622
+    593 -> 633
+    633 -> 632
+    632 -> 626
+    632 -> 631
+    631 -> 628
+    631 -> 630
+    593 -> 634
+    634 -> 635
+    635 -> 637
+    593 -> 647
     647 -> 646
+    646 -> 639
     646 -> 645
+    645 -> 642
+    642 -> 641
     645 -> 644
-    543 -> 650
-    650 -> 651
-    651 -> 653
-    543 -> 658
+    593 -> 652
+    652 -> 650
+    650 -> 649
+    652 -> 651
+    593 -> 660
+    660 -> 659
+    659 -> 654
+    659 -> 658
     658 -> 656
-    656 -> 655
     658 -> 657
-    543 -> 666
-    666 -> 665
-    665 -> 660
-    665 -> 664
-    664 -> 662
-    664 -> 663
-    543 -> 676
-    676 -> 675
-    675 -> 668
-    675 -> 674
-    674 -> 670
-    674 -> 673
-    673 -> 672
-    543 -> 677
-    677 -> 679
-    543 -> 680
-    680 -> 681
-    681 -> 685
-    685 -> 683
-    685 -> 684
-    543 -> 690
-    690 -> 688
+    593 -> 670
+    670 -> 669
+    669 -> 662
+    669 -> 668
+    668 -> 664
+    668 -> 667
+    667 -> 666
+    593 -> 671
+    671 -> 672
+    672 -> 674
+    593 -> 680
+    680 -> 678
+    678 -> 677
+    677 -> 676
+    680 -> 679
+    593 -> 688
     688 -> 687
-    690 -> 689
-    543 -> 700
-    700 -> 699
-    699 -> 692
+    687 -> 682
+    687 -> 686
+    686 -> 684
+    686 -> 685
+    593 -> 699
     699 -> 698
-    698 -> 696
-    696 -> 694
-    696 -> 695
+    698 -> 690
     698 -> 697
-    3 -> 701
-    701 -> 702
-    3 -> 703
-    703 -> 705
-    3 -> 706
-    706 -> 708
-    708 -> 716
+    697 -> 692
+    697 -> 696
+    696 -> 695
+    695 -> 694
+    593 -> 700
+    700 -> 701
+    701 -> 703
+    593 -> 708
+    708 -> 706
+    706 -> 705
+    708 -> 707
+    593 -> 716
     716 -> 715
     715 -> 710
     715 -> 714
     714 -> 712
     714 -> 713
-    708 -> 722
-    722 -> 720
-    720 -> 718
-    720 -> 719
-    722 -> 721
-    708 -> 732
-    732 -> 731
-    731 -> 724
-    731 -> 730
-    730 -> 728
-    728 -> 726
-    728 -> 727
-    730 -> 729
-    708 -> 736
-    736 -> 735
+    593 -> 726
+    726 -> 725
+    725 -> 718
+    725 -> 724
+    724 -> 720
+    724 -> 723
+    723 -> 722
+    593 -> 727
+    727 -> 729
+    593 -> 730
+    730 -> 731
+    731 -> 735
+    735 -> 733
     735 -> 734
-    708 -> 740
+    593 -> 740
+    740 -> 738
+    738 -> 737
     740 -> 739
-    739 -> 738
-    708 -> 744
-    744 -> 743
-    743 -> 742
-    708 -> 748
+    593 -> 750
+    750 -> 749
+    749 -> 742
+    749 -> 748
+    748 -> 746
+    746 -> 744
+    746 -> 745
     748 -> 747
-    747 -> 746
-    708 -> 752
-    752 -> 751
-    751 -> 750
-    708 -> 757
-    757 -> 756
-    756 -> 754
-    756 -> 755
+    3 -> 751
+    751 -> 752
+    3 -> 753
+    753 -> 755
+    3 -> 756
+    756 -> 758
+    758 -> 766
+    766 -> 765
+    765 -> 760
+    765 -> 764
+    764 -> 762
+    764 -> 763
+    758 -> 772
+    772 -> 770
+    770 -> 768
+    770 -> 769
+    772 -> 771
+    758 -> 782
+    782 -> 781
+    781 -> 774
+    781 -> 780
+    780 -> 778
+    778 -> 776
+    778 -> 777
+    780 -> 779
+    758 -> 786
+    786 -> 785
+    785 -> 784
+    758 -> 790
+    790 -> 789
+    789 -> 788
+    758 -> 794
+    794 -> 793
+    793 -> 792
+    758 -> 798
+    798 -> 797
+    797 -> 796
+    758 -> 802
+    802 -> 801
+    801 -> 800
+    758 -> 806
+    806 -> 805
+    805 -> 804
+    758 -> 811
+    811 -> 810
+    810 -> 808
+    810 -> 809
 }

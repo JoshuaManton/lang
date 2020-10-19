@@ -30,26 +30,47 @@ Register :: enum {
 }
 
 Instruction :: union {
+    LOAD8,
+    LOAD16,
+    LOAD32,
+    LOAD64,
+    STORE8,
+    STORE16,
+    STORE32,
+    STORE64,
+
     PUSH,
     POP,
 
     MOV,
     MOVI,
+    MOVIF,
 
     ADD,
     ADDI,
-    FADD,
-    FADDI,
+    ADDF,
+    ADDIF,
 
     SUB,
-    FSUB,
+    SUBF,
 
     MUL,
-    FMUL,
+    MULF,
 
-    SDIV,
-    UDIV,
-    FDIV,
+    DIVS,
+    DIVU,
+    DIVF,
+
+    MOD,
+    MODMOD,
+
+    SHL,
+    SHR,
+
+    BWOR,
+    BWAND,
+    BWXOR,
+    BWNOT,
 
     EQ,
     NEQ,
@@ -69,21 +90,13 @@ Instruction :: union {
     JUMPIFZ,
     JUMPIFZ_IP,
 
-    LOAD8,
-    LOAD16,
-    LOAD32,
-    LOAD64,
-    STORE8,
-    STORE16,
-    STORE32,
-    STORE64,
-
     COPY,
 
     EXIT,
     TRAP,
 
     PRINT_INT,
+    PRINT_FLOAT,
 
     PRINT_REG,
 }
@@ -102,55 +115,44 @@ MOVI :: struct {
     dst: Register,
     imm: i64,
 }
+MOVIF :: struct {
+    dst: Register,
+    imm: f64,
+}
 
-ADD :: struct {
-    dst, p1, p2: Register,
-}
-FADD :: struct {
-    dst, p1, p2: Register,
-}
+ADD  :: struct { dst, p1, p2: Register, }
+ADDF :: struct { dst, p1, p2: Register, }
 ADDI :: struct {
     dst, p1: Register,
     imm: i64,
 }
-FADDI :: struct {
+ADDIF :: struct {
     dst, p1: Register,
     imm: f64,
 }
-SUB :: struct {
-    dst, p1, p2: Register,
-}
-FSUB :: struct {
-    dst, p1, p2: Register,
-}
-MUL :: struct {
-    dst, p1, p2: Register,
-}
-FMUL :: struct {
-    dst, p1, p2: Register,
-}
-SDIV :: struct {
-    dst, p1, p2: Register,
-}
-UDIV :: struct {
-    dst, p1, p2: Register,
-}
-FDIV :: struct {
-    dst, p1, p2: Register,
-}
+SUB  :: struct { dst, p1, p2: Register, }
+SUBF :: struct { dst, p1, p2: Register, }
+MUL  :: struct { dst, p1, p2: Register, }
+MULF :: struct { dst, p1, p2: Register, }
+DIVS :: struct { dst, p1, p2: Register, }
+DIVU :: struct { dst, p1, p2: Register, }
+DIVF :: struct { dst, p1, p2: Register, }
 
-EQ :: struct {
-    dst, p1, p2: Register,
-}
-NEQ :: struct {
-    dst, p1, p2: Register,
-}
-LT :: struct {
-    dst, p1, p2: Register,
-}
-LTE :: struct {
-    dst, p1, p2: Register,
-}
+MOD    :: struct { dst, p1, p2: Register, }
+MODMOD :: struct { dst, p1, p2: Register, }
+
+SHL :: struct { dst, p1, p2: Register, }
+SHR :: struct { dst, p1, p2: Register, }
+
+BWOR  :: struct { dst, p1, p2: Register, }
+BWAND :: struct { dst, p1, p2: Register, }
+BWXOR :: struct { dst, p1, p2: Register, }
+BWNOT :: struct { dst, p1: Register, }
+
+EQ  :: struct { dst, p1, p2: Register, }
+NEQ :: struct { dst, p1, p2: Register, }
+LT  :: struct { dst, p1, p2: Register, }
+LTE :: struct { dst, p1, p2: Register, }
 
 GOTO :: struct {
     label: string,
@@ -225,17 +227,14 @@ TRAP :: struct {
 
 }
 
-PRINT_INT :: struct {
-    p1: Register,
-}
+PRINT_INT   :: struct { p1: Register, }
+PRINT_FLOAT :: struct { p1: Register, }
 
 
 
 PRINT_REG :: struct {
     p1: Register,
 }
-
-// division requires signed instructions
 
 call :: proc(vm: ^VM, label: string) {
     add_instruction(vm, JUMP{label});
@@ -291,50 +290,60 @@ execute_vm :: proc(vm: ^VM) {
                 }
             }
             switch kind in instruction {
-                case PUSH:       fmt.printf("    push %v\n", kind.p1);
-                case POP:        fmt.printf("    pop %v\n", kind.dst);
-                case MOV:        fmt.printf("    mov %v %v\n", kind.dst, kind.src);
-                case MOVI:       fmt.printf("    movi %v %v\n", kind.dst, kind.imm);
-                case ADD:        fmt.printf("    add %v %v %v\n", kind.dst, kind.p1, kind.p2);
-                case ADDI:       fmt.printf("    addi %v %v %v\n", kind.dst, kind.p1, kind.imm);
-                case FADD:       fmt.printf("    fadd %v %v %v\n", kind.dst, kind.p1, kind.p2);
-                case FADDI:      fmt.printf("    faddi %v %v %v\n", kind.dst, kind.p1, kind.imm);
-                case SUB:        fmt.printf("    sub %v %v %v\n", kind.dst, kind.p1, kind.p2);
-                case FSUB:       fmt.printf("    fsub %v %v %v\n", kind.dst, kind.p1, kind.p2);
-                case MUL:        fmt.printf("    mul %v %v %v\n", kind.dst, kind.p1, kind.p2);
-                case FMUL:       fmt.printf("    fmul %v %v %v\n", kind.dst, kind.p1, kind.p2);
-                case SDIV:       fmt.printf("    sdiv %v %v %v\n", kind.dst, kind.p1, kind.p2);
-                case UDIV:       fmt.printf("    udiv %v %v %v\n", kind.dst, kind.p1, kind.p2);
-                case FDIV:       fmt.printf("    fdiv %v %v %v\n", kind.dst, kind.p1, kind.p2);
-                case EQ:         fmt.printf("    eq %v %v %v\n", kind.dst, kind.p1, kind.p2);
-                case NEQ:        fmt.printf("    neq %v %v %v\n", kind.dst, kind.p1, kind.p2);
-                case LT:         fmt.printf("    lt %v %v %v\n", kind.dst, kind.p1, kind.p2);
-                case LTE:        fmt.printf("    lte %v %v %v\n", kind.dst, kind.p1, kind.p2);
-                case GOTO:       fmt.printf("    goto %v\n", kind.label);
-                case GOTO_IP:    fmt.printf("    goto_ip %v\n", kind.ip);
-                case GOTOIF:     fmt.printf("    gotoif %v %v\n", kind.p1, kind.label);
-                case GOTOIF_IP:  fmt.printf("    gotoif_ip %v %v\n", kind.p1, kind.ip);
-                case GOTOIFZ:    fmt.printf("    gotoifz %v %v\n", kind.p1, kind.label);
-                case GOTOIFZ_IP: fmt.printf("    gotoifz_ip %v %v\n", kind.p1, kind.ip);
-                case JUMP:       fmt.printf("    jump %v\n", kind.label);
-                case JUMP_IP:    fmt.printf("    jump_ip %v\n", kind.ip);
-                case JUMPIF:     fmt.printf("    jumpif %v %v\n", kind.p1, kind.label);
-                case JUMPIF_IP:  fmt.printf("    jumpif_ip %v %v\n", kind.p1, kind.ip);
-                case JUMPIFZ:    fmt.printf("    jumpifz %v %v\n", kind.p1, kind.label);
-                case JUMPIFZ_IP: fmt.printf("    jumpifz_ip %v %v\n", kind.p1, kind.ip);
-                case LOAD8:      fmt.printf("    load8 %v %v\n", kind.dst, kind.p1);
-                case LOAD16:     fmt.printf("    load16 %v %v\n", kind.dst, kind.p1);
-                case LOAD32:     fmt.printf("    load32 %v %v\n", kind.dst, kind.p1);
-                case LOAD64:     fmt.printf("    load64 %v %v\n", kind.dst, kind.p1);
-                case STORE8:     fmt.printf("    store8 %v %v\n", kind.dst, kind.p1);
-                case STORE16:    fmt.printf("    store16 %v %v\n", kind.dst, kind.p1);
-                case STORE32:    fmt.printf("    store32 %v %v\n", kind.dst, kind.p1);
-                case STORE64:    fmt.printf("    store64 %v %v\n", kind.dst, kind.p1);
-                case COPY:       fmt.printf("    copy %v %v %v\n", kind.dst, kind.src, kind.size);
-                case EXIT:       fmt.printf("    exit\n");
-                case TRAP:       fmt.printf("    trap\n");
-                case PRINT_INT:  fmt.printf("    print_int %v\n", kind.p1);
-                case PRINT_REG:  fmt.printf("    print_reg %v\n", kind.p1);
+                case PUSH:        fmt.printf("    push %v\n", kind.p1);
+                case POP:         fmt.printf("    pop %v\n", kind.dst);
+                case MOV:         fmt.printf("    mov %v %v\n", kind.dst, kind.src);
+                case MOVI:        fmt.printf("    movi %v %v\n", kind.dst, kind.imm);
+                case MOVIF:       fmt.printf("    movif %v %v\n", kind.dst, kind.imm);
+                case ADD:         fmt.printf("    add %v %v %v\n", kind.dst, kind.p1, kind.p2);
+                case ADDI:        fmt.printf("    addi %v %v %v\n", kind.dst, kind.p1, kind.imm);
+                case ADDF:        fmt.printf("    addf %v %v %v\n", kind.dst, kind.p1, kind.p2);
+                case ADDIF:       fmt.printf("    addif %v %v %v\n", kind.dst, kind.p1, kind.imm);
+                case SUB:         fmt.printf("    sub %v %v %v\n", kind.dst, kind.p1, kind.p2);
+                case SUBF:        fmt.printf("    subf %v %v %v\n", kind.dst, kind.p1, kind.p2);
+                case MUL:         fmt.printf("    mul %v %v %v\n", kind.dst, kind.p1, kind.p2);
+                case MULF:        fmt.printf("    mulf %v %v %v\n", kind.dst, kind.p1, kind.p2);
+                case DIVS:        fmt.printf("    divs %v %v %v\n", kind.dst, kind.p1, kind.p2);
+                case DIVU:        fmt.printf("    divu %v %v %v\n", kind.dst, kind.p1, kind.p2);
+                case DIVF:        fmt.printf("    divf %v %v %v\n", kind.dst, kind.p1, kind.p2);
+                case MOD:         fmt.printf("    mod %v %v %v\n", kind.dst, kind.p1, kind.p2);
+                case MODMOD:      fmt.printf("    modmod %v %v %v\n", kind.dst, kind.p1, kind.p2);
+                case SHL:         fmt.printf("    shl %v %v %v\n", kind.dst, kind.p1, kind.p2);
+                case SHR:         fmt.printf("    shr %v %v %v\n", kind.dst, kind.p1, kind.p2);
+                case BWOR:        fmt.printf("    bwor %v %v %v\n", kind.dst, kind.p1, kind.p2);
+                case BWAND:       fmt.printf("    bwand %v %v %v\n", kind.dst, kind.p1, kind.p2);
+                case BWXOR:       fmt.printf("    bwxor %v %v %v\n", kind.dst, kind.p1, kind.p2);
+                case BWNOT:       fmt.printf("    bwnot %v %v\n", kind.dst, kind.p1);
+                case EQ:          fmt.printf("    eq %v %v %v\n", kind.dst, kind.p1, kind.p2);
+                case NEQ:         fmt.printf("    neq %v %v %v\n", kind.dst, kind.p1, kind.p2);
+                case LT:          fmt.printf("    lt %v %v %v\n", kind.dst, kind.p1, kind.p2);
+                case LTE:         fmt.printf("    lte %v %v %v\n", kind.dst, kind.p1, kind.p2);
+                case GOTO:        fmt.printf("    goto %v\n", kind.label);
+                case GOTO_IP:     fmt.printf("    goto_ip %v\n", kind.ip);
+                case GOTOIF:      fmt.printf("    gotoif %v %v\n", kind.p1, kind.label);
+                case GOTOIF_IP:   fmt.printf("    gotoif_ip %v %v\n", kind.p1, kind.ip);
+                case GOTOIFZ:     fmt.printf("    gotoifz %v %v\n", kind.p1, kind.label);
+                case GOTOIFZ_IP:  fmt.printf("    gotoifz_ip %v %v\n", kind.p1, kind.ip);
+                case JUMP:        fmt.printf("    jump %v\n", kind.label);
+                case JUMP_IP:     fmt.printf("    jump_ip %v\n", kind.ip);
+                case JUMPIF:      fmt.printf("    jumpif %v %v\n", kind.p1, kind.label);
+                case JUMPIF_IP:   fmt.printf("    jumpif_ip %v %v\n", kind.p1, kind.ip);
+                case JUMPIFZ:     fmt.printf("    jumpifz %v %v\n", kind.p1, kind.label);
+                case JUMPIFZ_IP:  fmt.printf("    jumpifz_ip %v %v\n", kind.p1, kind.ip);
+                case LOAD8:       fmt.printf("    load8 %v %v\n", kind.dst, kind.p1);
+                case LOAD16:      fmt.printf("    load16 %v %v\n", kind.dst, kind.p1);
+                case LOAD32:      fmt.printf("    load32 %v %v\n", kind.dst, kind.p1);
+                case LOAD64:      fmt.printf("    load64 %v %v\n", kind.dst, kind.p1);
+                case STORE8:      fmt.printf("    store8 %v %v\n", kind.dst, kind.p1);
+                case STORE16:     fmt.printf("    store16 %v %v\n", kind.dst, kind.p1);
+                case STORE32:     fmt.printf("    store32 %v %v\n", kind.dst, kind.p1);
+                case STORE64:     fmt.printf("    store64 %v %v\n", kind.dst, kind.p1);
+                case COPY:        fmt.printf("    copy %v %v %v\n", kind.dst, kind.src, kind.size);
+                case EXIT:        fmt.printf("    exit\n");
+                case TRAP:        fmt.printf("    trap\n");
+                case PRINT_INT:   fmt.printf("    print_int %v\n", kind.p1);
+                case PRINT_FLOAT: fmt.printf("    print_float %v\n", kind.p1);
+                case PRINT_REG:   fmt.printf("    print_reg %v\n", kind.p1);
             }
         }
 
@@ -375,23 +384,36 @@ execute_vm :: proc(vm: ^VM) {
             case PUSH: vm.registers[.rsp] -= 8; (cast(^u64)&vm.memory[vm.registers[.rsp]])^ = vm.registers[kind.p1];
             case POP:  vm.registers[kind.dst] = (cast(^u64)&vm.memory[vm.registers[.rsp]])^; mem.zero(&vm.memory[vm.registers[.rsp]], 8); vm.registers[.rsp] += 8;
 
-            case MOV:  vm.registers[kind.dst] = vm.registers[kind.src];
-            case MOVI: vm.registers[kind.dst] = transmute(u64)kind.imm;
+            case MOV:   vm.registers[kind.dst] = vm.registers[kind.src];
+            case MOVI:  vm.registers[kind.dst] = transmute(u64)kind.imm;
+            case MOVIF: vm.registers[kind.dst] = transmute(u64)kind.imm;
 
             case ADD:   vm.registers[kind.dst] = vm.registers[kind.p1] + vm.registers[kind.p2];
             case ADDI:  vm.registers[kind.dst] = vm.registers[kind.p1] + transmute(u64)kind.imm;
-            case FADD:  vm.registers[kind.dst] = transmute(u64)(transmute(f64)vm.registers[kind.p1] + transmute(f64)vm.registers[kind.p2]);
-            case FADDI: vm.registers[kind.dst] = transmute(u64)(transmute(f64)vm.registers[kind.p1] + kind.imm);
+            case ADDF:  vm.registers[kind.dst] = transmute(u64)(transmute(f64)vm.registers[kind.p1] + transmute(f64)vm.registers[kind.p2]);
+            case ADDIF: vm.registers[kind.dst] = transmute(u64)(transmute(f64)vm.registers[kind.p1] + kind.imm);
 
             case SUB:  vm.registers[kind.dst] = vm.registers[kind.p1] - vm.registers[kind.p2];
-            case FSUB: vm.registers[kind.dst] = transmute(u64)(transmute(f64)vm.registers[kind.p1] - transmute(f64)vm.registers[kind.p2]);
+            case SUBF: vm.registers[kind.dst] = transmute(u64)(transmute(f64)vm.registers[kind.p1] - transmute(f64)vm.registers[kind.p2]);
 
             case MUL:  vm.registers[kind.dst] = vm.registers[kind.p1] * vm.registers[kind.p2];
-            case FMUL: vm.registers[kind.dst] = transmute(u64)(transmute(f64)vm.registers[kind.p1] * transmute(f64)vm.registers[kind.p2]);
+            case MULF: vm.registers[kind.dst] = transmute(u64)(transmute(f64)vm.registers[kind.p1] * transmute(f64)vm.registers[kind.p2]);
 
-            case SDIV: vm.registers[kind.dst] = transmute(u64)(transmute(i64)vm.registers[kind.p1] / transmute(i64)vm.registers[kind.p2]);
-            case UDIV: vm.registers[kind.dst] = vm.registers[kind.p1] / vm.registers[kind.p2];
-            case FDIV: vm.registers[kind.dst] = transmute(u64)(transmute(f64)vm.registers[kind.p1] / transmute(f64)vm.registers[kind.p2]);
+            case DIVS: vm.registers[kind.dst] = transmute(u64)(transmute(i64)vm.registers[kind.p1] / transmute(i64)vm.registers[kind.p2]);
+            case DIVU: vm.registers[kind.dst] = vm.registers[kind.p1] / vm.registers[kind.p2];
+            case DIVF: vm.registers[kind.dst] = transmute(u64)(transmute(f64)vm.registers[kind.p1] / transmute(f64)vm.registers[kind.p2]);
+
+            // todo(josh): test these extensively
+            case MOD:    vm.registers[kind.dst] = vm.registers[kind.p1] %  vm.registers[kind.p2];
+            case MODMOD: vm.registers[kind.dst] = vm.registers[kind.p1] %% vm.registers[kind.p2];
+
+            case SHL: vm.registers[kind.dst] = vm.registers[kind.p1] << vm.registers[kind.p2];
+            case SHR: vm.registers[kind.dst] = vm.registers[kind.p1] >> vm.registers[kind.p2];
+
+            case BWOR:  vm.registers[kind.dst] = vm.registers[kind.p1] | vm.registers[kind.p2];
+            case BWAND: vm.registers[kind.dst] = vm.registers[kind.p1] & vm.registers[kind.p2];
+            case BWXOR: vm.registers[kind.dst] = vm.registers[kind.p1] ~ vm.registers[kind.p2];
+            case BWNOT: vm.registers[kind.dst] = ~vm.registers[kind.p1];
 
             case EQ:  vm.registers[kind.dst] = cast(u64)(vm.registers[kind.p1] == vm.registers[kind.p2]);
             case NEQ: vm.registers[kind.dst] = cast(u64)(vm.registers[kind.p1] != vm.registers[kind.p2]);
@@ -414,7 +436,8 @@ execute_vm :: proc(vm: ^VM) {
 
             case EXIT: break instruction_loop;
             case TRAP: fmt.println("Crash!!!"); break instruction_loop;
-            case PRINT_INT: fmt.println(transmute(i64)vm.registers[kind.p1]);
+            case PRINT_INT:   fmt.println(cast(i32)transmute(i64)vm.registers[kind.p1]);
+            case PRINT_FLOAT: fmt.println(cast(f32)transmute(f64)vm.registers[kind.p1]);
 
             case PRINT_REG: fmt.println("REGISTER", kind.p1, "=", vm.registers[kind.p1]);
             case: panic(twrite(kind));

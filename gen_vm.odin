@@ -203,8 +203,8 @@ gen_vm_block :: proc(vm: ^VM, procedure: ^IR_Proc, block: ^IR_Block) {
         switch kind in &inst.kind {
             case IR_Move_Immediate: {
                 switch val in kind.value {
-                    case i64: add_instruction(vm, MOVI{VM_REGISTER(kind.dst.register), kind.value.(i64)});
-                    case f64: panic("todo(josh): support floats");
+                    case i64: add_instruction(vm, MOVI{VM_REGISTER(kind.dst.register),  val});
+                    case f64: add_instruction(vm, MOVIF{VM_REGISTER(kind.dst.register), val});
                     case: panic(twrite(val));
                 }
             }
@@ -212,27 +212,97 @@ gen_vm_block :: proc(vm: ^VM, procedure: ^IR_Proc, block: ^IR_Block) {
             case IR_Load:  gen_vm_load_from_storage(vm, procedure, VM_REGISTER(kind.dst.register), kind.storage);
             case IR_Binop: {
                 switch kind.op {
-                    case .Plus:          add_instruction(vm, ADD{VM_REGISTER(kind.dst.register), VM_REGISTER(kind.lhs.register), VM_REGISTER(kind.rhs.register)});
-                    case .Multiply:      add_instruction(vm, MUL{VM_REGISTER(kind.dst.register), VM_REGISTER(kind.lhs.register), VM_REGISTER(kind.rhs.register)});
-                    case .Minus:         add_instruction(vm, SUB{VM_REGISTER(kind.dst.register), VM_REGISTER(kind.lhs.register), VM_REGISTER(kind.rhs.register)});
-                    case .Equal_To:      add_instruction(vm, EQ {VM_REGISTER(kind.dst.register), VM_REGISTER(kind.lhs.register), VM_REGISTER(kind.rhs.register)});
-                    case .Not_Equal:     add_instruction(vm, NEQ{VM_REGISTER(kind.dst.register), VM_REGISTER(kind.lhs.register), VM_REGISTER(kind.rhs.register)});
-                    case .Divide:        unimplemented();
-                    case .Mod:           unimplemented();
-                    case .Mod_Mod:       unimplemented();
-                    case .Shift_Left:    unimplemented();
-                    case .Shift_Right:   unimplemented();
-                    case .Bit_Xor:       unimplemented();
-                    case .Bit_Or:        unimplemented();
-                    case .Bit_And:       unimplemented();
-                    case .Bit_Not:       unimplemented();
-                    case .Not:           unimplemented();
-                    case .Less:          unimplemented();
-                    case .Greater:       unimplemented();
-                    case .Less_Equal:    unimplemented();
-                    case .Greater_Equal: unimplemented();
-                    case .And:           unimplemented();
-                    case .Or:            unimplemented();
+                    case .Plus: {
+                        if is_integer_type(kind.type) {
+                            add_instruction(vm, ADD{VM_REGISTER(kind.dst.register), VM_REGISTER(kind.lhs.register), VM_REGISTER(kind.rhs.register)});
+                        }
+                        else {
+                            assert(is_float_type(kind.type));
+                            add_instruction(vm, ADDF{VM_REGISTER(kind.dst.register), VM_REGISTER(kind.lhs.register), VM_REGISTER(kind.rhs.register)});
+                        }
+                    }
+                    case .Minus: {
+                        if is_integer_type(kind.type) {
+                            add_instruction(vm, SUB{VM_REGISTER(kind.dst.register), VM_REGISTER(kind.lhs.register), VM_REGISTER(kind.rhs.register)});
+                        }
+                        else {
+                            assert(is_float_type(kind.type));
+                            add_instruction(vm, SUBF{VM_REGISTER(kind.dst.register), VM_REGISTER(kind.lhs.register), VM_REGISTER(kind.rhs.register)});
+                        }
+                    }
+                    case .Multiply: {
+                        if is_integer_type(kind.type) {
+                            add_instruction(vm, MUL{VM_REGISTER(kind.dst.register), VM_REGISTER(kind.lhs.register), VM_REGISTER(kind.rhs.register)});
+                        }
+                        else {
+                            assert(is_float_type(kind.type));
+                            add_instruction(vm, MULF{VM_REGISTER(kind.dst.register), VM_REGISTER(kind.lhs.register), VM_REGISTER(kind.rhs.register)});
+                        }
+                    }
+                    case .Divide: {
+                        if is_signed_integer_type(kind.type) {
+                            add_instruction(vm, DIVS{VM_REGISTER(kind.dst.register), VM_REGISTER(kind.lhs.register), VM_REGISTER(kind.rhs.register)});
+                        }
+                        else if is_unsigned_integer_type(kind.type) {
+                            add_instruction(vm, DIVU{VM_REGISTER(kind.dst.register), VM_REGISTER(kind.lhs.register), VM_REGISTER(kind.rhs.register)});
+                        }
+                        else {
+                            assert(is_float_type(kind.type));
+                            add_instruction(vm, DIVF{VM_REGISTER(kind.dst.register), VM_REGISTER(kind.lhs.register), VM_REGISTER(kind.rhs.register)});
+                        }
+                    }
+                    case .Mod: {
+                        add_instruction(vm, MOD{VM_REGISTER(kind.dst.register), VM_REGISTER(kind.lhs.register), VM_REGISTER(kind.rhs.register)});
+                    }
+                    case .Mod_Mod: {
+                        add_instruction(vm, MODMOD{VM_REGISTER(kind.dst.register), VM_REGISTER(kind.lhs.register), VM_REGISTER(kind.rhs.register)});
+                    }
+                    case .Shift_Left: {
+                        add_instruction(vm, SHL{VM_REGISTER(kind.dst.register), VM_REGISTER(kind.lhs.register), VM_REGISTER(kind.rhs.register)});
+                    }
+                    case .Shift_Right: {
+                        add_instruction(vm, SHR{VM_REGISTER(kind.dst.register), VM_REGISTER(kind.lhs.register), VM_REGISTER(kind.rhs.register)});
+                    }
+                    case .Bit_Xor: {
+                        add_instruction(vm, BWXOR{VM_REGISTER(kind.dst.register), VM_REGISTER(kind.lhs.register), VM_REGISTER(kind.rhs.register)});
+                    }
+                    case .Bit_Or: {
+                        add_instruction(vm, BWOR{VM_REGISTER(kind.dst.register), VM_REGISTER(kind.lhs.register), VM_REGISTER(kind.rhs.register)});
+                    }
+                    case .Bit_And: {
+                        add_instruction(vm, BWAND{VM_REGISTER(kind.dst.register), VM_REGISTER(kind.lhs.register), VM_REGISTER(kind.rhs.register)});
+                    }
+                    case .Bit_Not: {
+                        add_instruction(vm, BWNOT{VM_REGISTER(kind.dst.register), VM_REGISTER(kind.lhs.register)});
+                    }
+                    case .Equal_To: {
+                        add_instruction(vm, EQ{VM_REGISTER(kind.dst.register), VM_REGISTER(kind.lhs.register), VM_REGISTER(kind.rhs.register)});
+                    }
+                    case .Not_Equal: {
+                        add_instruction(vm, NEQ{VM_REGISTER(kind.dst.register), VM_REGISTER(kind.lhs.register), VM_REGISTER(kind.rhs.register)});
+                    }
+                    case .Not: {
+                        unimplemented();
+                    }
+                    case .Less: {
+                        add_instruction(vm, LT{VM_REGISTER(kind.dst.register), VM_REGISTER(kind.lhs.register), VM_REGISTER(kind.rhs.register)});
+                    }
+                    case .Greater: {
+                        add_instruction(vm, LTE{VM_REGISTER(kind.dst.register), VM_REGISTER(kind.rhs.register), VM_REGISTER(kind.lhs.register)});
+                    }
+                    case .Less_Equal: {
+                        add_instruction(vm, LTE{VM_REGISTER(kind.dst.register), VM_REGISTER(kind.lhs.register), VM_REGISTER(kind.rhs.register)});
+                    }
+                    case .Greater_Equal: {
+                        add_instruction(vm, LT{VM_REGISTER(kind.dst.register), VM_REGISTER(kind.rhs.register), VM_REGISTER(kind.lhs.register)});
+                    }
+                    case .And: {
+                        unimplemented();
+                    }
+                    case .Or: {
+                        unimplemented();
+                    }
+                    case: panic(twrite(kind));
                 }
             }
             case IR_Unary: {
@@ -268,7 +338,6 @@ gen_vm_block :: proc(vm: ^VM, procedure: ^IR_Proc, block: ^IR_Block) {
             }
             case IR_Call: {
                 switch kind.procedure_name {
-                    // todo(josh): proper intrinsics
                     case "__trap": {
                         add_instruction(vm, TRAP{});
                     }
@@ -277,6 +346,12 @@ gen_vm_block :: proc(vm: ^VM, procedure: ^IR_Proc, block: ^IR_Block) {
                         p := kind.parameters[0];
                         gen_vm_block(vm, procedure, p.block);
                         add_instruction(vm, PRINT_INT{VM_REGISTER(p.result_register.register)});
+                    }
+                    case "__print_float": {
+                        assert(len(kind.parameters) == 1);
+                        p := kind.parameters[0];
+                        gen_vm_block(vm, procedure, p.block);
+                        add_instruction(vm, PRINT_FLOAT{VM_REGISTER(p.result_register.register)});
                     }
                     case: {
                         for reg in kind.registers_to_save {

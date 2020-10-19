@@ -92,11 +92,13 @@ IR_If :: struct {
     else_block: ^IR_Block,
 }
 IR_Unary :: struct {
+    type: ^Type,
     op: Operator,
     dst: ^Register_Storage,
     rhs: ^Register_Storage,
 }
 IR_Binop :: struct {
+    type: ^Type,
     op: Operator,
     dst: ^Register_Storage,
     lhs: ^Register_Storage,
@@ -148,34 +150,31 @@ generate_ir :: proc() -> ^IR_Result {
 
     // make all global variables
     for node in global_scope.nodes {
-    	file := &node.kind.(Ast_File);
-    	for node in file.scope.nodes {
-    		#partial
-	        switch kind in &node.kind {
-	            case Ast_Var: {
-	                ir_var := make_ir_var(&kind, cast(^IR_Storage)ir_allocate_global_storage(ir, kind.type));
-	                append(&ir.global_variables, ir_var);
-	            }
-	        }
-    	}
+        file := &node.kind.(Ast_File);
+        for node in file.scope.nodes {
+            #partial
+            switch kind in &node.kind {
+                case Ast_Var: {
+                    ir_var := make_ir_var(&kind, cast(^IR_Storage)ir_allocate_global_storage(ir, kind.type));
+                    append(&ir.global_variables, ir_var);
+                }
+            }
+        }
     }
 
     // make all global procedures
     for node in global_scope.nodes {
         file := &node.kind.(Ast_File);
-    	for node in file.scope.nodes {
-    		#partial
-	        switch kind in &node.kind {
-	            case Ast_Proc: {
-	                if !kind.is_foreign {
-	                    gen_ir_proc(ir, &kind);
-	                }
-	                else {
-	                    assert(kind.name == "__trap" || kind.name == "__print_int");
-	                }
-	            }
-	        }
-    	}
+        for node in file.scope.nodes {
+            #partial
+            switch kind in &node.kind {
+                case Ast_Proc: {
+                    if !kind.is_foreign {
+                        gen_ir_proc(ir, &kind);
+                    }
+                }
+            }
+        }
     }
 
     return ir;
@@ -436,7 +435,7 @@ gen_ir_expr :: proc(procedure: ^IR_Proc, expr: ^Ast_Expr, is_at_statement_level 
         dst := alloc_register(procedure, expr.checked.type);
         switch kind in expr.checked.constant_value {
             case i64:    ir_inst(procedure, IR_Move_Immediate{dst, kind});
-            case f64:    unimplemented();
+            case f64:    ir_inst(procedure, IR_Move_Immediate{dst, kind});
             case string: unimplemented();
             case bool:   ir_inst(procedure, IR_Move_Immediate{dst, cast(i64)kind});
             case TypeID: ir_inst(procedure, IR_Move_Immediate{dst, transmute(i64)kind});
@@ -504,7 +503,7 @@ gen_ir_expr :: proc(procedure: ^IR_Proc, expr: ^Ast_Expr, is_at_statement_level 
             expr_reg := gen_ir_expr(procedure, kind.rhs);
             defer free_register(procedure, expr_reg);
             dst := alloc_register(procedure, expr.checked.type);
-            ir_inst(procedure, IR_Unary{kind.op, dst, expr_reg});
+            ir_inst(procedure, IR_Unary{expr.checked.type, kind.op, dst, expr_reg});
             return dst;
         }
         case Expr_Size_Of: {
@@ -552,7 +551,7 @@ gen_ir_expr :: proc(procedure: ^IR_Proc, expr: ^Ast_Expr, is_at_statement_level 
 
 gen_ir_binary :: proc(procedure: ^IR_Proc, kind: Operator, lhs, rhs: ^Register_Storage, result_type: ^Type) -> ^Register_Storage {
     dst := alloc_register(procedure, result_type);
-    ir_inst(procedure, IR_Binop{kind, dst, lhs, rhs});
+    ir_inst(procedure, IR_Binop{result_type, kind, dst, lhs, rhs});
     return dst;
 }
 

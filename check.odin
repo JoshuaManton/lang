@@ -31,6 +31,8 @@ type_rawptr: ^Type;
 
 type_typeid: ^Type;
 
+// type_untyped_number: ^Type;
+
 all_types: [dynamic]^Type;
 
 init_types :: proc() {
@@ -53,15 +55,18 @@ init_types :: proc() {
 
     // numeric aliases
     type_byte  = type_u8;  register_declaration(global_scope, "byte",  Decl_Type{type_byte});
-    type_int   = type_i32; register_declaration(global_scope, "int",   Decl_Type{type_int});
-    type_uint  = type_u32; register_declaration(global_scope, "uint",  Decl_Type{type_uint});
-    type_float = type_f32; register_declaration(global_scope, "float", Decl_Type{type_float});
+    type_int   = type_i64; register_declaration(global_scope, "int",   Decl_Type{type_int});
+    type_uint  = type_u64; register_declaration(global_scope, "uint",  Decl_Type{type_uint});
+    type_float = type_f64; register_declaration(global_scope, "float", Decl_Type{type_float});
 
     // "special" types
     type_rawptr = TYPE(make_type(Type_Ptr{nil}, 8)); register_declaration(global_scope, "rawptr", Decl_Type{type_rawptr});
     type_bool = TYPE(make_type(Type_Primitive{}, 1)); register_declaration(global_scope, "bool", Decl_Type{type_bool});
     type_string = TYPE(make_type_struct([]Field{{"data", TYPE(get_or_make_type_ptr_to(type_byte))}, {"length", type_int}})); register_declaration(global_scope, "string", Decl_Type{type_string});
     type_typeid = TYPE(make_type_named("typeid", type_int)); register_declaration(global_scope, "typeid", Decl_Type{type_typeid});
+
+    // untyped types
+    // type_untyped_number = TYPE(make_type(Type_Untyped_Number{}, 0));
 }
 
 begin_typechecking :: proc() {
@@ -308,69 +313,10 @@ typecheck_expr :: proc(expr: ^Ast_Expr, expected_type: ^Type) -> Checked_Expr {
             assert(checked_lhs.type == checked_rhs.type);
 
             switch kind.op {
-                case .Multiply: {
-                    checked.type = checked_lhs.type;
-                    if checked_lhs.constant_value != nil && checked_rhs.constant_value != nil {
-                        switch val in checked_lhs.constant_value {
-                            case i64:    checked.constant_value = val * checked_rhs.constant_value.(i64);
-                            case f64:    checked.constant_value = val * checked_rhs.constant_value.(f64);
-                            case string: panic("wat");
-                            case bool:   panic("wat");
-                            case TypeID: panic("wat");
-                        }
-                    }
-                }
-                case .Divide: {
-                    checked.type = checked_lhs.type;
-                    if checked_lhs.constant_value != nil && checked_rhs.constant_value != nil {
-                        switch val in checked_lhs.constant_value {
-                            case i64:    checked.constant_value = val / checked_rhs.constant_value.(i64);
-                            case f64:    checked.constant_value = val / checked_rhs.constant_value.(f64);
-                            case string: panic("wat");
-                            case bool:   panic("wat");
-                            case TypeID: panic("wat");
-                        }
-                    }
-                }
-                case .Mod: {
-                    checked.type = checked_lhs.type; // todo(josh): make sure left and right are both integers
-                    if checked_lhs.constant_value != nil && checked_rhs.constant_value != nil {
-                        switch val in checked_lhs.constant_value {
-                            case i64:    checked.constant_value = val % checked_rhs.constant_value.(i64);
-                            case f64:    panic("wat");
-                            case string: panic("wat");
-                            case bool:   panic("wat");
-                            case TypeID: panic("wat");
-                        }
-                    }
-                }
-                case .Mod_Mod: {
-                    checked.type = checked_lhs.type; // todo(josh): make sure left and right are both integers
-                    if checked_lhs.constant_value != nil && checked_rhs.constant_value != nil {
-                        switch val in checked_lhs.constant_value {
-                            case i64:    checked.constant_value = val %% checked_rhs.constant_value.(i64);
-                            case f64:    panic("wat");
-                            case string: panic("wat");
-                            case bool:   panic("wat");
-                            case TypeID: panic("wat");
-                        }
-                    }
-                }
-                case .Shift_Left: {
-                    checked.type = checked_lhs.type; // todo(josh): make sure left and right are both integers
-                    if checked_lhs.constant_value != nil && checked_rhs.constant_value != nil {
-                        // todo(josh): constant values
-                        unimplemented();
-                    }
-                }
-                case .Shift_Right: {
-                    checked.type = checked_lhs.type; // todo(josh): make sure left and right are both integers
-                    if checked_lhs.constant_value != nil && checked_rhs.constant_value != nil {
-                        // todo(josh): constant values
-                        unimplemented();
-                    }
-                }
                 case .Plus: {
+                    assert(is_numeric_type(checked_lhs.type), "LHS of + must be a numeric type.");
+                    assert(is_numeric_type(checked_lhs.type), "RHS of + must be a numeric type.");
+                    assert(checked_lhs.type == checked_rhs.type);
                     checked.type = checked_lhs.type;
                     if checked_lhs.constant_value != nil && checked_rhs.constant_value != nil {
                         switch val in checked_lhs.constant_value {
@@ -383,6 +329,9 @@ typecheck_expr :: proc(expr: ^Ast_Expr, expected_type: ^Type) -> Checked_Expr {
                     }
                 }
                 case .Minus: {
+                    assert(is_numeric_type(checked_lhs.type), "LHS of - must be a numeric type.");
+                    assert(is_numeric_type(checked_lhs.type), "RHS of - must be a numeric type.");
+                    assert(checked_lhs.type == checked_rhs.type);
                     checked.type = checked_lhs.type;
                     if checked_lhs.constant_value != nil && checked_rhs.constant_value != nil {
                         switch val in checked_lhs.constant_value {
@@ -394,7 +343,90 @@ typecheck_expr :: proc(expr: ^Ast_Expr, expected_type: ^Type) -> Checked_Expr {
                         }
                     }
                 }
+                case .Multiply: {
+                    assert(is_numeric_type(checked_lhs.type), "LHS of * must be a numeric type.");
+                    assert(is_numeric_type(checked_lhs.type), "RHS of * must be a numeric type.");
+                    assert(checked_lhs.type == checked_rhs.type);
+                    checked.type = checked_lhs.type;
+                    if checked_lhs.constant_value != nil && checked_rhs.constant_value != nil {
+                        switch val in checked_lhs.constant_value {
+                            case i64:    checked.constant_value = val * checked_rhs.constant_value.(i64);
+                            case f64:    checked.constant_value = val * checked_rhs.constant_value.(f64);
+                            case string: panic("wat");
+                            case bool:   panic("wat");
+                            case TypeID: panic("wat");
+                        }
+                    }
+                }
+                case .Divide: {
+                    assert(is_numeric_type(checked_lhs.type), "LHS of / must be a numeric type.");
+                    assert(is_numeric_type(checked_lhs.type), "RHS of / must be a numeric type.");
+                    assert(checked_lhs.type == checked_rhs.type);
+                    checked.type = checked_lhs.type;
+                    if checked_lhs.constant_value != nil && checked_rhs.constant_value != nil {
+                        switch val in checked_lhs.constant_value {
+                            case i64:    checked.constant_value = val / checked_rhs.constant_value.(i64);
+                            case f64:    checked.constant_value = val / checked_rhs.constant_value.(f64);
+                            case string: panic("wat");
+                            case bool:   panic("wat");
+                            case TypeID: panic("wat");
+                        }
+                    }
+                }
+                case .Mod: {
+                    assert(is_integer_type(checked_lhs.type), "LHS of % must be an integer type.");
+                    assert(is_integer_type(checked_lhs.type), "RHS of % must be an integer type.");
+                    assert(checked_lhs.type == checked_rhs.type);
+                    checked.type = checked_lhs.type; // todo(josh): make sure left and right are both integers
+                    if checked_lhs.constant_value != nil && checked_rhs.constant_value != nil {
+                        switch val in checked_lhs.constant_value {
+                            case i64:    checked.constant_value = val % checked_rhs.constant_value.(i64);
+                            case f64:    panic("wat");
+                            case string: panic("wat");
+                            case bool:   panic("wat");
+                            case TypeID: panic("wat");
+                        }
+                    }
+                }
+                case .Mod_Mod: {
+                    assert(is_integer_type(checked_lhs.type), "LHS of %% must be an integer type.");
+                    assert(is_integer_type(checked_lhs.type), "RHS of %% must be an integer type.");
+                    assert(checked_lhs.type == checked_rhs.type);
+                    checked.type = checked_lhs.type; // todo(josh): make sure left and right are both integers
+                    if checked_lhs.constant_value != nil && checked_rhs.constant_value != nil {
+                        switch val in checked_lhs.constant_value {
+                            case i64:    checked.constant_value = val %% checked_rhs.constant_value.(i64);
+                            case f64:    panic("wat");
+                            case string: panic("wat");
+                            case bool:   panic("wat");
+                            case TypeID: panic("wat");
+                        }
+                    }
+                }
+                case .Shift_Left: {
+                    assert(is_unsigned_integer_type(checked_lhs.type), "LHS of << must be an unsigned integer.");
+                    assert(is_unsigned_integer_type(checked_lhs.type), "RHS of << must be an unsigned integer.");
+                    assert(checked_lhs.type == checked_rhs.type);
+                    checked.type = checked_lhs.type; // todo(josh): make sure left and right are both integers
+                    if checked_lhs.constant_value != nil && checked_rhs.constant_value != nil {
+                        // todo(josh): constant values
+                        unimplemented();
+                    }
+                }
+                case .Shift_Right: {
+                    assert(is_unsigned_integer_type(checked_lhs.type), "LHS of >> must be an unsigned integer.");
+                    assert(is_unsigned_integer_type(checked_lhs.type), "RHS of >> must be an unsigned integer.");
+                    assert(checked_lhs.type == checked_rhs.type);
+                    checked.type = checked_lhs.type;
+                    if checked_lhs.constant_value != nil && checked_rhs.constant_value != nil {
+                        // todo(josh): constant values
+                        unimplemented();
+                    }
+                }
                 case .Bit_Xor: {
+                    assert(is_unsigned_integer_type(checked_lhs.type), "LHS of ~ must be an unsigned integer.");
+                    assert(is_unsigned_integer_type(checked_lhs.type), "RHS of ~ must be an unsigned integer.");
+                    assert(checked_lhs.type == checked_rhs.type);
                     checked.type = checked_lhs.type; // todo(josh): make sure left and right are both integers
                     if checked_lhs.constant_value != nil && checked_rhs.constant_value != nil {
                         switch val in checked_lhs.constant_value {
@@ -407,6 +439,9 @@ typecheck_expr :: proc(expr: ^Ast_Expr, expected_type: ^Type) -> Checked_Expr {
                     }
                 }
                 case .Bit_And: {
+                    assert(is_unsigned_integer_type(checked_lhs.type), "LHS of & must be an unsigned integer.");
+                    assert(is_unsigned_integer_type(checked_lhs.type), "RHS of & must be an unsigned integer.");
+                    assert(checked_lhs.type == checked_rhs.type);
                     checked.type = checked_lhs.type; // todo(josh): make sure left and right are both integers
                     if checked_lhs.constant_value != nil && checked_rhs.constant_value != nil {
                         switch val in checked_lhs.constant_value {
@@ -419,6 +454,9 @@ typecheck_expr :: proc(expr: ^Ast_Expr, expected_type: ^Type) -> Checked_Expr {
                     }
                 }
                 case .Bit_Or: {
+                    assert(is_unsigned_integer_type(checked_lhs.type), "LHS of | must be an unsigned integer.");
+                    assert(is_unsigned_integer_type(checked_lhs.type), "RHS of | must be an unsigned integer.");
+                    assert(checked_lhs.type == checked_rhs.type);
                     checked.type = checked_lhs.type; // todo(josh): make sure left and right are both integers
                     if checked_lhs.constant_value != nil && checked_rhs.constant_value != nil {
                         switch val in checked_lhs.constant_value {
@@ -431,6 +469,7 @@ typecheck_expr :: proc(expr: ^Ast_Expr, expected_type: ^Type) -> Checked_Expr {
                     }
                 }
                 case .Equal_To: {
+                    assert(checked_lhs.type == checked_rhs.type);
                     checked.type = type_bool;
                     if checked_lhs.constant_value != nil && checked_rhs.constant_value != nil {
                         switch val in checked_lhs.constant_value {
@@ -443,6 +482,7 @@ typecheck_expr :: proc(expr: ^Ast_Expr, expected_type: ^Type) -> Checked_Expr {
                     }
                 }
                 case .Not_Equal: {
+                    assert(checked_lhs.type == checked_rhs.type);
                     checked.type = type_bool;
                     if checked_lhs.constant_value != nil && checked_rhs.constant_value != nil {
                         switch val in checked_lhs.constant_value {
@@ -455,6 +495,9 @@ typecheck_expr :: proc(expr: ^Ast_Expr, expected_type: ^Type) -> Checked_Expr {
                     }
                 }
                 case .Less: {
+                    assert(is_numeric_type(checked_lhs.type), "LHS of < must be a numeric type.");
+                    assert(is_numeric_type(checked_lhs.type), "RHS of < must be a numeric type.");
+                    assert(checked_lhs.type == checked_rhs.type);
                     checked.type = type_bool;
                     if checked_lhs.constant_value != nil && checked_rhs.constant_value != nil {
                         switch val in checked_lhs.constant_value {
@@ -467,6 +510,9 @@ typecheck_expr :: proc(expr: ^Ast_Expr, expected_type: ^Type) -> Checked_Expr {
                     }
                 }
                 case .Greater: {
+                    assert(is_numeric_type(checked_lhs.type), "LHS of > must be a numeric type.");
+                    assert(is_numeric_type(checked_lhs.type), "RHS of > must be a numeric type.");
+                    assert(checked_lhs.type == checked_rhs.type);
                     checked.type = type_bool;
                     if checked_lhs.constant_value != nil && checked_rhs.constant_value != nil {
                         switch val in checked_lhs.constant_value {
@@ -479,6 +525,9 @@ typecheck_expr :: proc(expr: ^Ast_Expr, expected_type: ^Type) -> Checked_Expr {
                     }
                 }
                 case .Less_Equal: {
+                    assert(is_numeric_type(checked_lhs.type), "LHS of <= must be a numeric type.");
+                    assert(is_numeric_type(checked_lhs.type), "RHS of <= must be a numeric type.");
+                    assert(checked_lhs.type == checked_rhs.type);
                     checked.type = type_bool;
                     if checked_lhs.constant_value != nil && checked_rhs.constant_value != nil {
                         switch val in checked_lhs.constant_value {
@@ -491,6 +540,9 @@ typecheck_expr :: proc(expr: ^Ast_Expr, expected_type: ^Type) -> Checked_Expr {
                     }
                 }
                 case .Greater_Equal: {
+                    assert(is_numeric_type(checked_lhs.type), "LHS of >= must be a numeric type.");
+                    assert(is_numeric_type(checked_lhs.type), "RHS of >= must be a numeric type.");
+                    assert(checked_lhs.type == checked_rhs.type);
                     checked.type = type_bool;
                     if checked_lhs.constant_value != nil && checked_rhs.constant_value != nil {
                         switch val in checked_lhs.constant_value {
@@ -503,6 +555,9 @@ typecheck_expr :: proc(expr: ^Ast_Expr, expected_type: ^Type) -> Checked_Expr {
                     }
                 }
                 case .And: {
+                    assert(is_bool_type(checked_lhs.type), "LHS of && must be a bool type.");
+                    assert(is_bool_type(checked_lhs.type), "RHS of && must be a bool type.");
+                    assert(checked_lhs.type == checked_rhs.type);
                     checked.type = type_bool;
                     if checked_lhs.constant_value != nil && checked_rhs.constant_value != nil {
                         switch val in checked_lhs.constant_value {
@@ -515,6 +570,9 @@ typecheck_expr :: proc(expr: ^Ast_Expr, expected_type: ^Type) -> Checked_Expr {
                     }
                 }
                 case .Or: {
+                    assert(is_bool_type(checked_lhs.type), "LHS of || must be a bool type.");
+                    assert(is_bool_type(checked_lhs.type), "RHS of || must be a bool type.");
+                    assert(checked_lhs.type == checked_rhs.type);
                     checked.type = type_bool;
                     if checked_lhs.constant_value != nil && checked_rhs.constant_value != nil {
                         switch val in checked_lhs.constant_value {
@@ -558,21 +616,22 @@ typecheck_expr :: proc(expr: ^Ast_Expr, expected_type: ^Type) -> Checked_Expr {
         }
         case Expr_Cast: {
             // todo(josh): constant values
-
             typecheck_typespec(kind.typespec);
             assert(kind.typespec.type != nil);
             checked_rhs := typecheck_expr(kind.rhs, nil);
             assert(checked_rhs.type != nil);
-            if is_pointer_type(kind.typespec.type) && is_pointer_type(checked_rhs.type) {
-            }
-            else if is_numeric_type(kind.typespec.type) && is_numeric_type(checked_rhs.type) {
-            }
-            else {
-                assert(false, "invalid cast");
-            }
+
+            ok := can_do_cast(checked_rhs.type, kind.typespec.type);
+            assert(ok, "cannot do cast");
 
             checked.type = kind.typespec.type;
             checked.mode = .RValue;
+
+            can_do_cast :: proc(source, target: ^Type) -> bool {
+                if is_pointer_type(source) && is_pointer_type(target) do return true;
+                if is_numeric_type(source) && is_numeric_type(target) do return true;
+                return false;
+            }
         }
         case Expr_Unary: {
             checked_rhs := typecheck_expr(kind.rhs, nil); // todo(josh): should we pass an expected type here?
@@ -587,6 +646,7 @@ typecheck_expr :: proc(expr: ^Ast_Expr, expected_type: ^Type) -> Checked_Expr {
                     }
                 }
                 case .Minus: {
+                    assert(is_signed_integer_type(checked_rhs.type) || is_float_type(checked_rhs.type));
                     checked.type = checked_rhs.type;
                     if checked_rhs.constant_value != nil {
                         #partial
@@ -597,10 +657,13 @@ typecheck_expr :: proc(expr: ^Ast_Expr, expected_type: ^Type) -> Checked_Expr {
                     }
                 }
                 case .Plus: {
+                    // pretty much a no-op right now
+                    assert(is_signed_integer_type(checked_rhs.type) || is_float_type(checked_rhs.type));
                     checked.type = checked_rhs.type;
                     checked.constant_value = checked_rhs.constant_value;
                 }
                 case .Bit_Not: {
+                    assert(is_integer_type(checked_rhs.type));
                     checked.type = checked_rhs.type;
                     if checked_rhs.constant_value != nil {
                         switch val in checked_rhs.constant_value {
@@ -780,6 +843,24 @@ is_float_type :: proc(t: ^Type) -> bool {
     }
     return false;
 }
+is_signed_integer_type :: proc(t: ^Type) -> bool {
+    switch t {
+        case type_i8, type_i16, type_i32, type_i64: return true;
+    }
+    return false;
+}
+is_unsigned_integer_type :: proc(t: ^Type) -> bool {
+    switch t {
+        case type_u8, type_u16, type_u32, type_u64: return true;
+    }
+    return false;
+}
+is_bool_type :: proc(t: ^Type) -> bool {
+    switch t {
+        case type_bool: return true;
+    }
+    return false;
+}
 
 
 
@@ -787,6 +868,7 @@ TYPE_MAGIC :: 789162976;
 Type :: struct {
     kind: union {
         Type_Primitive,
+        Type_Untyped_Number,
         Type_Named,
         Type_Struct,
         Type_Ptr,
@@ -801,6 +883,10 @@ Type :: struct {
 }
 
 Type_Primitive :: struct {
+
+}
+
+Type_Untyped_Number :: struct {
 
 }
 
@@ -843,8 +929,6 @@ TYPE :: proc(k: ^$T) -> ^Type {
 }
 
 make_type :: proc(kind: $T, size: int, align := -1, loc := #caller_location) -> ^T {
-    assert(size > 0);
-
     align := align;
 
     // note(josh): this won't handle every case in the universe, but it is plenty good enough
