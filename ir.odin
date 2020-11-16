@@ -205,8 +205,8 @@ make_ir_var :: proc(var: ^Ast_Var, storage: ^IR_Storage) -> ^IR_Var {
 
 gen_ir_proc :: proc(ir: ^IR_Result, ast_procedure: ^Ast_Proc) -> ^IR_Proc {
     ir_procedure := new(IR_Proc);
-    assert(ast_procedure.name != "");
-    ir_procedure.name = ast_procedure.name;
+    assert(ast_procedure.header.name != "");
+    ir_procedure.name = ast_procedure.header.name;
 
     // note(josh): we only do 4 registers for now
     append(&ir_procedure.register_freelist, 3);
@@ -227,7 +227,7 @@ gen_ir_proc :: proc(ir: ^IR_Result, ast_procedure: ^Ast_Proc) -> ^IR_Proc {
 
     PUSH_IR_BLOCK(ir_procedure.block);
     // :EntryPoint
-    if ast_procedure.name == "main" {
+    if ast_procedure.header.name == "main" {
         for ast_var in all_global_variables {
             if ast_var.expr != nil {
                 assert(ast_var.storage != nil);
@@ -284,9 +284,10 @@ gen_ir_statement :: proc(ir: ^IR_Result, procedure: ^IR_Proc, node: ^Ast_Node) {
         case Ast_Continue:       panic("Ast_Continue");
         case Ast_Break:          panic("Ast_Break");
 
-        case Ast_Defer:      // skip, handled separately in gen_ir_scope()
-        case Ast_Struct:     // skip, no IR needed
-        case Ast_Include:    // skip, no IR needed
+        case Ast_Defer:       // skip, handled separately in gen_ir_scope()
+        case Ast_Struct:      // skip, no IR needed
+        case Ast_Include:     // skip, no IR needed
+        case Ast_Proc_Header: // skip, no IR needed
         case Ast_Expr:       panic("Shouldn't be any expressions at statement level.");
         case Ast_Identifier: panic("Shouldn't be any identifiers at statement level.");
         case: panic(twrite(stmt));
@@ -356,6 +357,8 @@ ir_inst :: proc(procedure: ^IR_Proc, instruction: IR_Instruction_Kind) {
     append(&current_block.instructions, IR_Instruction{instruction});
 }
 
+
+// todo(josh): ALL of the gen_ir_exprs in this procedure need to be reworked. this code path doesn't know how to handle register allocation
 get_storage_for_expr :: proc(procedure: ^IR_Proc, expr: ^Ast_Expr, loc := #caller_location) -> ^IR_Storage {
     #partial
     switch kind in expr.kind {

@@ -1,14 +1,21 @@
 #include "basic.lang"
 
+proc main() {
+    print_int(factorial(5));
+    print_int(N);
+    print_int(sizeof(p));
+    print_int(sizeof(Foo));
+}
+
+const N = sizeof(p^);
+var p: ^Foo;
+struct Foo {
+    arr: [sizeof(p)]i32;
+}
+
 proc factorial(n: int) : int {
     if (n == 1) {
         return 1;
     }
     return n * factorial(n-1);
-}
-
-proc main() {
-    var x: int = factorial(5);
-    print(x);
-    assert(x == 120);
 }

@@ -1,5 +1,23 @@
 #include "basic.lang"
 
+var global_var_with_init = 21;
+var v: Vector3;
+
+proc main() {
+    assert(global_var_with_init == 21);
+    v.z = 123;
+    assert(v.z == 123);
+
+    // order independent declarations!
+    things();
+    floats();
+    int_sizes();
+    type_alias();
+    bool_stuff();
+    pointers();
+    print_int(123);
+}
+
 var aa: int;
 var bb: int;
 var cc: int;
@@ -159,21 +177,4 @@ proc pointers() {
     var y_ptr = &v.y;
     y_ptr^ = 149;
     assert(v.y == 149);
-}
-
-var global_var_with_init = 21;
-var v: Vector3;
-
-proc main() {
-    assert(global_var_with_init == 21);
-    v.z = 123;
-    assert(v.z == 123);
-
-    things();
-    floats();
-    int_sizes();
-    type_alias();
-    bool_stuff();
-    pointers();
-    print_int(123);
 }

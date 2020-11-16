@@ -68,11 +68,11 @@ gv_node :: proc(node: ^Ast_Node, labels, cx: ^strings.Builder) {
             gv_edge(node, NODE(kind.rhs), labels, cx);
         }
         case Ast_Proc: {
-            for param in kind.params {
+            for param in kind.header.params {
                 gv_edge(node, NODE(param), labels, cx);
             }
-            if kind.return_typespec != nil {
-                gv_edge(node, NODE(kind.return_typespec), labels, cx);
+            if kind.header.return_typespec != nil {
+                gv_edge(node, NODE(kind.header.return_typespec), labels, cx);
             }
             if !kind.is_foreign {
                 assert(kind.block != nil);
@@ -81,6 +81,9 @@ gv_node :: proc(node: ^Ast_Node, labels, cx: ^strings.Builder) {
             else {
                 assert(kind.block == nil);
             }
+        }
+        case Ast_Proc_Header: {
+
         }
         case Ast_Struct: {
             for field in kind.fields {
@@ -216,7 +219,8 @@ gv_name :: proc(node: ^Ast_Node) -> string {
             case Ast_Scope:          sbwrite(sb, "scope");
             case Ast_Var:            sbwrite(sb, "var ", kind.name);
             case Ast_Identifier:     sbwrite(sb, kind.name);
-            case Ast_Proc:           sbwrite(sb, "proc ", kind.name);
+            case Ast_Proc:           sbwrite(sb, "proc ", kind.header.name);
+            case Ast_Proc_Header:
             case Ast_Struct:         sbwrite(sb, "struct ", kind.name);
             case Ast_Assign: {
                 #partial

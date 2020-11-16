@@ -71,6 +71,17 @@ init_types :: proc() {
 
 begin_typechecking :: proc() {
     typecheck_scope(global_scope);
+    for file in global_scope.nodes {
+        if _, ok := file.kind.(Ast_File); !ok do continue;
+        for decl in file.kind.(Ast_File).scope.ordered_declarations {
+            #partial
+            switch kind in decl.kind {
+                case Decl_Struct: logf("struct %", kind.structure.name);
+                case Decl_Proc:   logf("proc %", kind.procedure.header.name);
+                case Decl_Var:    logf("var %", kind.var.name);
+            }
+        }
+    }
 }
 
 typecheck_scope :: proc(scope: ^Ast_Scope) {
@@ -79,13 +90,22 @@ typecheck_scope :: proc(scope: ^Ast_Scope) {
     }
 }
 
-typecheck_node :: proc(node: ^Ast_Node) {
+typecheck_node :: proc(node: ^Ast_Node, expected_type: ^Type = nil) {
+    if node.state == .Resolved {
+        return;
+    }
+    else if node.state == .Resolving {
+        panic(twrite("circular dependency: ", node^));
+    }
+
+    node.state = .Resolving;
+
     switch kind in &node.kind {
         case Ast_File:           typecheck_scope(kind.scope);
         case Ast_Scope:          typecheck_scope(&kind);
-        case Ast_Var:            typecheck_var(&kind);    assert(kind.type != nil);
-        case Ast_Proc:           typecheck_proc(&kind);   assert(kind.type != nil);
-        case Ast_Struct:         typecheck_struct(&kind); assert(kind.type != nil);
+        case Ast_Var:            typecheck_var(&kind);         assert(kind.type != nil);
+        case Ast_Proc:           typecheck_proc(&kind);        assert(kind.header.type != nil);
+        case Ast_Proc_Header:    typecheck_proc_header(&kind); assert(kind.type != nil);
         case Ast_If:             typecheck_if(&kind);
         case Ast_While:          typecheck_while(&kind);
         case Ast_For:            typecheck_for(&kind);
@@ -93,12 +113,22 @@ typecheck_node :: proc(node: ^Ast_Node) {
         case Ast_Expr_Statement: typecheck_expr(kind.expr, nil);
         case Ast_Assign:         typecheck_assign(&kind);
         case Ast_Defer:          typecheck_defer(&kind);
-        case Ast_Identifier:     assert(kind.resolved_declaration != nil);
+        case Ast_Identifier:     assert(false, "should never get here with an Ast_Identifier");
         case Ast_Include:        typecheck_node(NODE(kind.file));
-        case Ast_Continue:       // do nothing
-        case Ast_Break:          // do nothing
-        case Ast_Expr:     panic("there should be no Ast_Exprs here, only Ast_Expr_Statements");
+        case Ast_Continue:       // todo(josh): verify that we are inside a loop?
+        case Ast_Break:          // todo(josh): verify that we are inside a loop?
+        case Ast_Struct: {
+            assert(kind.type != nil);
+            complete_type(kind.type);
+        }
+        case Ast_Expr:           typecheck_expr(&kind, expected_type);
         case: panic(twrite(node));
+    }
+
+    node.state = .Resolved;
+
+    if node.enclosing_scope.is_file_scope && node.declaration != nil {
+        append(&node.enclosing_scope.ordered_declarations, node.declaration);
     }
 }
 
@@ -106,17 +136,19 @@ typecheck_identifier :: proc(ident: ^Ast_Identifier) -> Checked_Expr {
     checked: Checked_Expr;
     switch decl in ident.resolved_declaration.kind {
         case Decl_Type: {
+            assert(decl.type != nil);
             checked.type = type_typeid;
             checked.mode = .Constant;
             checked.constant_value = decl.type.id;
         }
         case Decl_Struct: {
+            assert(decl.structure.type != nil);
             checked.type = type_typeid;
             checked.mode = .Constant;
             checked.constant_value = TYPE(decl.structure.type).id;
         }
         case Decl_Var: {
-            assert(decl.var.type != nil);
+            typecheck_node(cast(^Ast_Node)decl.var);
             checked.type = decl.var.type;
             if decl.var.is_const {
                 assert(decl.var.constant_value != nil);
@@ -128,8 +160,8 @@ typecheck_identifier :: proc(ident: ^Ast_Identifier) -> Checked_Expr {
             }
         }
         case Decl_Proc: {
-            assert(decl.procedure.type != nil);
-            checked.type = TYPE(decl.procedure.type);
+            typecheck_node(cast(^Ast_Node)decl.procedure.header);
+            checked.type = TYPE(decl.procedure.header.type);
             checked.mode = .RValue;
         }
         case: panic(twrite(ident));
@@ -213,16 +245,6 @@ typecheck_typespec :: proc(typespec: ^Expr_Typespec) -> Checked_Expr {
 }
 
 typecheck_proc :: proc(procedure: ^Ast_Proc) {
-    param_types: [dynamic]^Type;
-    for param in procedure.params {
-        typecheck_var(param);
-        assert(param.type != nil);
-        append(&param_types, param.type);
-    }
-    return_type: ^Type;
-    if procedure.return_typespec != nil { typecheck_typespec(procedure.return_typespec); return_type = procedure.return_typespec.type; }
-    procedure.type = make_type_proc(param_types[:], return_type);
-
     if procedure.is_foreign {
         assert(procedure.block == nil);
     }
@@ -230,27 +252,31 @@ typecheck_proc :: proc(procedure: ^Ast_Proc) {
         assert(procedure.block != nil);
         typecheck_scope(procedure.block);
     }
-    assert(procedure.type != nil);
+
+    typecheck_node(cast(^Ast_Node)procedure.header);
+    assert(procedure.header.type != nil);
+}
+
+typecheck_proc_header :: proc(header: ^Ast_Proc_Header) {
+    param_types: [dynamic]^Type;
+    for param in header.params {
+        typecheck_var(param);
+        assert(param.type != nil);
+        append(&param_types, param.type);
+    }
+    return_type: ^Type;
+    if header.return_typespec != nil { typecheck_typespec(header.return_typespec); return_type = header.return_typespec.type; }
+    header.type = make_type_proc(param_types[:], return_type);
 }
 
 typecheck_return :: proc(return_statement: ^Ast_Return) {
     if return_statement.expr != nil {
-        declared_return_type := NODE(return_statement).enclosing_procedure.type;
+        declared_return_type := NODE(return_statement).enclosing_procedure.header.type;
         assert(declared_return_type != nil);
         checked_return := typecheck_expr(return_statement.expr, TYPE(declared_return_type.return_type));
         assert(checked_return.type != nil);
-        assert(NODE(return_statement).enclosing_procedure.return_typespec.type == checked_return.type);
+        assert(NODE(return_statement).enclosing_procedure.header.return_typespec.type == checked_return.type);
     }
-}
-
-typecheck_struct :: proc(structure: ^Ast_Struct) {
-    fields: [dynamic]Field;
-    for field in structure.fields {
-        typecheck_var(field);
-        assert(field.type != nil);
-        append(&fields, Field{field.name, field.type});
-    }
-    structure.type = make_type_struct(fields[:]);
 }
 
 typecheck_if :: proc(if_statement: ^Ast_If) {
@@ -302,11 +328,12 @@ Checked_Expr :: struct {
 
 typecheck_expr :: proc(expr: ^Ast_Expr, expected_type: ^Type) -> Checked_Expr {
     checked: Checked_Expr;
-
     switch kind in &expr.kind {
         case Expr_Binary: {
             checked_lhs := typecheck_expr(kind.lhs, nil); // todo(josh): should we pass the expected_type through here? I think so.
             checked_rhs := typecheck_expr(kind.rhs, nil); // todo(josh): should we pass the expected_type through here? I think so.
+            complete_type(checked_lhs.type);
+            complete_type(checked_rhs.type);
             assert(checked_lhs.mode != .No_Value);
             assert(checked_rhs.mode != .No_Value);
             assert(checked_lhs.type != nil);
@@ -607,6 +634,7 @@ typecheck_expr :: proc(expr: ^Ast_Expr, expected_type: ^Type) -> Checked_Expr {
         }
         case Expr_Dereference: {
             checked_lhs := typecheck_expr(kind.lhs, nil); // todo(josh): should we pass an expected type here?
+            complete_type(checked_lhs.type);
             lhs_type := checked_lhs.type;
             ptr, ok := checked_lhs.type.kind.(Type_Ptr);
             assert(ok);
@@ -618,8 +646,10 @@ typecheck_expr :: proc(expr: ^Ast_Expr, expected_type: ^Type) -> Checked_Expr {
             // todo(josh): constant values
             typecheck_typespec(kind.typespec);
             assert(kind.typespec.type != nil);
+            complete_type(kind.typespec.type);
             checked_rhs := typecheck_expr(kind.rhs, nil);
             assert(checked_rhs.type != nil);
+            complete_type(checked_rhs.type);
 
             ok := can_do_cast(checked_rhs.type, kind.typespec.type);
             assert(ok, "cannot do cast");
@@ -635,6 +665,7 @@ typecheck_expr :: proc(expr: ^Ast_Expr, expected_type: ^Type) -> Checked_Expr {
         }
         case Expr_Unary: {
             checked_rhs := typecheck_expr(kind.rhs, nil); // todo(josh): should we pass an expected type here?
+            complete_type(checked_rhs.type);
             assert(checked_rhs.type != nil);
             #partial
             switch kind.op {
@@ -711,6 +742,7 @@ typecheck_expr :: proc(expr: ^Ast_Expr, expected_type: ^Type) -> Checked_Expr {
         }
         case Expr_Size_Of: {
             checked_size_of := typecheck_expr(kind.thing_to_get_the_size_of, nil);
+            complete_type(checked_size_of.type);
             size: int;
             if checked_size_of.type == type_typeid {
                 true_type := all_types[checked_size_of.constant_value.(TypeID)];
@@ -731,6 +763,7 @@ typecheck_expr :: proc(expr: ^Ast_Expr, expected_type: ^Type) -> Checked_Expr {
         }
         case Expr_Selector: {
             checked_lhs := typecheck_expr(kind.lhs, nil); // todo(josh): should we pass an expected type here?
+            complete_type(checked_lhs.type);
             assert(checked_lhs.type != nil);
             structure, ok := checked_lhs.type.kind.(Type_Struct);
             assert(ok);
@@ -750,12 +783,14 @@ typecheck_expr :: proc(expr: ^Ast_Expr, expected_type: ^Type) -> Checked_Expr {
             // todo(josh): constant values
 
             checked_lhs := typecheck_expr(kind.lhs, nil);
+            complete_type(checked_lhs.type);
             array_type, ok := checked_lhs.type.kind.(Type_Array);
             assert(ok, "need array for lhs"); // todo(josh): error handling
 
             // todo(josh): handle different integer types: byte, i32, u16, etc
             checked_index := typecheck_expr(kind.index, type_int);
             assert(is_integer_type(checked_index.type), "need int for index expr");
+            complete_type(checked_index.type);
 
             checked.type = array_type.array_of;
             checked.mode = .LValue;
@@ -867,6 +902,7 @@ is_bool_type :: proc(t: ^Type) -> bool {
 TYPE_MAGIC :: 789162976;
 Type :: struct {
     kind: union {
+        Type_Incomplete,
         Type_Primitive,
         Type_Untyped_Number,
         Type_Named,
@@ -880,6 +916,11 @@ Type :: struct {
     size:  int,
     align: int,
     magic: int,
+    state: Resolve_State,
+}
+
+Type_Incomplete :: struct {
+    node: ^Ast_Node,
 }
 
 Type_Primitive :: struct {
@@ -928,14 +969,63 @@ TYPE :: proc(k: ^$T) -> ^Type {
     return t;
 }
 
-make_type :: proc(kind: $T, size: int, align := -1, loc := #caller_location) -> ^T {
+make_incomplete_type :: proc(node: ^Ast_Node) -> ^Type {
+    t := new(Type);
+    t.kind = Type_Incomplete{node};
+    t.magic = TYPE_MAGIC;
+    t.id = cast(TypeID)len(all_types);
+    append(&all_types, t);
+    return t;
+}
+
+make_type :: proc(kind: $T, size: int, align := -1) -> ^T {
+    t := make_incomplete_type(nil);
+    t.kind = kind;
+    complete_type_size_align(t, size, align);
+    return cast(^T)t;
+}
+
+complete_type :: proc(t: ^Type) {
+    if t.state == .Resolved {
+        return;
+    }
+    else if t.state == .Resolving {
+        panic("circular type dependency");
+    }
+
+    _, ok := t.kind.(Type_Incomplete);
+    assert(ok);
+
+    incomplete := &t.kind.(Type_Incomplete);
+    assert(incomplete.node != nil);
+
+    t.state = .Resolving;
+
+    #partial
+    switch kind in &incomplete.node.kind {
+        case Ast_Struct: {
+            fields: [dynamic]Field;
+            for field in kind.fields {
+                typecheck_var(field);
+                assert(field.type != nil);
+                append(&fields, Field{field.name, field.type});
+            }
+            append(&incomplete.node.enclosing_scope.ordered_declarations, incomplete.node.declaration);
+            complete_type_struct(t, fields[:]);
+        }
+        case: panic(twrite(incomplete.node.kind));
+    }
+
+    t.state = .Resolved;
+}
+
+complete_type_size_align :: proc(t: ^Type, size: int, align: int) {
+    size := size;
     align := align;
 
     // note(josh): this won't handle every case in the universe, but it is plenty good enough
+    if size == 0 do size = 1;
     if align == -1 do align = next_power_of_two(size);
-
-    t := new(Type);
-    t.kind = kind;
 
     // note(josh): This means that a string, for example, even though it has a "true" size of 12,
     // will have an actual size of 16. This automatically makes the type work for arrays, but it
@@ -944,14 +1034,16 @@ make_type :: proc(kind: $T, size: int, align := -1, loc := #caller_location) -> 
     t.size = mem.align_forward_int(size, align);
     assert(t.size % align == 0);
     t.align = align;
-    t.magic = TYPE_MAGIC;
-    t.id = cast(TypeID)len(all_types);
-    append(&all_types, t);
-
-    return cast(^T)t;
+    t.state = .Resolved;
 }
 
-make_type_struct :: proc(fields: []Field, loc := #caller_location) -> ^Type_Struct {
+make_type_struct :: proc(fields: []Field) -> ^Type_Struct {
+    t := make_incomplete_type(nil);
+    complete_type_struct(t, fields);
+    return &t.kind.(Type_Struct);
+}
+
+complete_type_struct :: proc(t: ^Type, fields: []Field) {
     offsets := make([]int, len(fields));
     size := 0;
     largest_alignment := 1;
@@ -972,8 +1064,8 @@ make_type_struct :: proc(fields: []Field, loc := #caller_location) -> ^Type_Stru
         size += size_delta;
         largest_alignment = max(largest_alignment, field.type.align);
     }
-    if size == 0 do size = 1;
-    return make_type(Type_Struct{fields, offsets}, size, largest_alignment, loc);
+    t.kind = Type_Struct{fields, offsets};
+    complete_type_size_align(t, size, largest_alignment);
 }
 
 make_type_proc :: proc(param_types: []^Type, return_type: ^Type) -> ^Type_Proc {

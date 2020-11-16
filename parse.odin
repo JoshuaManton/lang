@@ -27,6 +27,7 @@ parse_file :: proc(filename: string) -> ^Ast_File {
     lexer := make_lexer(transmute(string)file_data);
 
     file.scope = parse_scope(&lexer);
+    file.scope.is_file_scope = true;
     for decl in file.scope.declarations {
         append(&global_scope.declarations, decl);
     }
@@ -182,7 +183,7 @@ parse_var :: proc(lexer: ^Lexer, require_semicolon: bool) -> ^Ast_Var {
         append(&all_global_variables, var);
     }
 
-    register_declaration(current_scope, var.name, Decl_Var{var});
+    (cast(^Ast_Node)var).declaration = register_declaration(current_scope, var.name, Decl_Var{var});
     return var;
 }
 
@@ -228,6 +229,7 @@ parse_typespec :: proc(lexer: ^Lexer) -> ^Expr_Typespec {
 
 parse_proc :: proc(lexer: ^Lexer) -> ^Ast_Proc {
     procedure := make_node(Ast_Proc);
+    procedure.header = make_node(Ast_Proc_Header);
 
     old_proc := current_procedure;
     current_procedure = procedure;
@@ -236,8 +238,8 @@ parse_proc :: proc(lexer: ^Lexer) -> ^Ast_Proc {
     // name
     expect(lexer, .Proc);
     name_token := expect(lexer, .Identifier);
-    procedure.name = name_token.slice;
-    register_declaration(current_scope, procedure.name, Decl_Proc{procedure});
+    procedure.header.name = name_token.slice;
+    (cast(^Ast_Node)procedure.header).declaration = register_declaration(current_scope, procedure.header.name, Decl_Proc{procedure});
 
     // a procedure has it's own scope that the parameters live in, then there is another scope for the procedure block
     procedure.proc_scope = make_node(Ast_Scope);
@@ -267,7 +269,7 @@ parse_proc :: proc(lexer: ^Lexer) -> ^Ast_Proc {
             }
         }
     }
-    procedure.params = params[:];
+    procedure.header.params = params[:];
 
     // return value
     return_typespec: ^Expr_Typespec;
@@ -280,7 +282,7 @@ parse_proc :: proc(lexer: ^Lexer) -> ^Ast_Proc {
             return_typespec = parse_typespec(lexer);
         }
     }
-    procedure.return_typespec = return_typespec;
+    procedure.header.return_typespec = return_typespec;
 
     // directives
     directive_loop:
@@ -326,7 +328,7 @@ parse_struct :: proc(lexer: ^Lexer) -> ^Ast_Struct {
     expect(lexer, .Struct);
     name_token := expect(lexer, .Identifier);
     structure.name = name_token.slice;
-    register_declaration(current_scope, structure.name, Decl_Struct{structure});
+    (cast(^Ast_Node)structure).declaration = register_declaration(current_scope, structure.name, Decl_Struct{structure});
 
     expect(lexer, .LCurly);
     field_loop: for {
@@ -741,21 +743,6 @@ unary_operator :: proc(t: Token_Kind, loc := #caller_location) -> Operator {
     unreachable();
 }
 
-Node_Dependency :: struct {
-    depends_on: ^Ast_Node,
-    type: Depend_Type,
-}
-
-Depend_Type :: enum {
-    Size,
-    Full,
-}
-
-node_depend :: proc(node: ^Ast_Node, depends_on: ^Ast_Node, type: Depend_Type) {
-    append(&node.dependencies, Node_Dependency{depends_on, type});
-    append(&depends_on.nodes_that_depend_on_this_node, node);
-}
-
 NODE_MAGIC :: 273628378;
 Ast_Node :: struct {
     kind: union {
@@ -764,6 +751,7 @@ Ast_Node :: struct {
         Ast_Include,
         Ast_Var,
         Ast_Proc,
+        Ast_Proc_Header,
         Ast_Struct,
         Ast_If,
         Ast_While,
@@ -781,8 +769,14 @@ Ast_Node :: struct {
     s: int,
     enclosing_scope: ^Ast_Scope,
     enclosing_procedure: ^Ast_Proc,
-    dependencies: [dynamic]Node_Dependency,
-    nodes_that_depend_on_this_node: [dynamic]^Ast_Node,
+    state: Resolve_State,
+    declaration: ^Declaration,
+}
+
+Resolve_State :: enum {
+    Unresolved,
+    Resolving,
+    Resolved,
 }
 
 nodes_to_typecheck: [dynamic]^Ast_Node;
@@ -821,6 +815,8 @@ Ast_Scope :: struct {
     declarations: [dynamic]^Declaration,
     all_defers: [dynamic]^Ast_Defer,
     defer_stack: [dynamic]^Ast_Defer,
+    ordered_declarations: [dynamic]^Declaration,
+    is_file_scope: bool,
 }
 
 Ast_Include :: struct {
@@ -840,20 +836,24 @@ Ast_Var :: struct {
 }
 
 Ast_Proc :: struct {
-    name: string,
-    params: []^Ast_Var,
-    return_typespec: ^Expr_Typespec,
+    header: ^Ast_Proc_Header,
     proc_scope: ^Ast_Scope, // note(josh): proc_scope is one scope above `block` and holds the parameters
     block: ^Ast_Scope,
     variables: [dynamic]^Ast_Var, // note(josh): contains the procedures parameters and all vars defined in the body
-    type: ^Type_Proc,
     is_foreign: bool,
+}
+
+Ast_Proc_Header :: struct {
+    name: string,
+    params: []^Ast_Var,
+    return_typespec: ^Expr_Typespec,
+    type: ^Type_Proc,
 }
 
 Ast_Struct :: struct {
     name: string,
     fields: [dynamic]^Ast_Var,
-    type: ^Type_Struct,
+    type: ^Type,
 }
 
 Ast_If :: struct {
