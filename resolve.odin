@@ -8,9 +8,9 @@ queue_identifier_for_resolving :: proc(ident: ^Ast_Identifier) {
     append(&unresolved_identifiers, ident);
 }
 
-register_declaration :: proc(scope: ^Ast_Scope, name: string, deck_kind: Declaration_Kind) -> ^Declaration {
+register_declaration :: proc(scope: ^Ast_Scope, name: string, decl: Declaration_Kind) -> ^Declaration {
     // todo(josh): check for shadowing and collisions!!!!
-    decl := new_clone(Declaration{name, deck_kind});
+    decl := new_clone(Declaration{name, decl});
     if _, ok := decl.kind.(Decl_Struct); ok {
         structure := &decl.kind.(Decl_Struct);
         structure.structure.type = make_incomplete_type(cast(^Ast_Node)structure.structure);
